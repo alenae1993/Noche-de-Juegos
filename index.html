@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Noche de Juegos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+/* Layout: escenario de concurso de TV — una columna central, tarjetas tipo "letrero" y botones grandes para usar con los dedos */
+:root{
+  --stage:#1b1033; --stage-2:#28184a; --stage-3:#352260;
+  --ink:#fff6e8; --muted:#bfaedf; --line:rgba(255,246,232,.14);
+  --coral:#ff6a55; --sun:#ffc23d; --teal:#27c7b4; --blue:#5a83ff; --pink:#ff4fa3;
+  --ok:#3ddc84; --bad:#ff5a5a;
+  --f-display:'Bungee', 'Impact', 'Arial Black', sans-serif;
+  --f-body:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --r:18px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:var(--stage);
+  background-image:radial-gradient(circle at 50% -10%, var(--stage-3) 0, transparent 60%);
+  background-attachment:fixed;
+  color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px 40px;
+}
+#app{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1;letter-spacing:.01em}
+h1{font-size:clamp(2.2rem,7vw,4.2rem)}
+h2{font-size:clamp(1.5rem,4.5vw,2.3rem)}
+h3{font-size:1.15rem}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.eyebrow{font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sun);font-weight:800}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+input,select{font:inherit;color:var(--ink);background:var(--stage-2);border:2px solid var(--line);border-radius:12px;padding:11px 14px;min-width:0}
+input::placeholder{color:var(--muted)}
+a{color:var(--sun)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:999px;font-weight:800;background:var(--sun);color:#2a1600;box-shadow:0 4px 0 #b5801c;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b5801c}
+.btn.alt{background:var(--stage-3);color:var(--ink);box-shadow:0 4px 0 #1a0f30}
+.btn.ok{background:var(--ok);color:#06290f;box-shadow:0 4px 0 #1f8a4f}
+.btn.bad{background:var(--bad);color:#2d0505;box-shadow:0 4px 0 #a52f2f}
+.btn.big{font-size:1.15rem;padding:16px 26px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.center{justify-content:center}
+.spread{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--stage-2);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+
+/* barra superior */
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between}
+.logo{font-family:var(--f-display);font-size:1.25rem;color:var(--sun);letter-spacing:.02em}
+.logo span{color:var(--pink)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--stage-3);font-size:.85rem;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+
+/* portada */
+.hero{text-align:center;padding:26px 0 6px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.hero h1{color:var(--sun);text-shadow:0 5px 0 var(--coral)}
+.hero h1 em{font-style:normal;color:var(--ink);text-shadow:0 5px 0 var(--pink)}
+.bulbs{display:flex;gap:10px}
+.bulbs i{width:12px;height:12px;border-radius:50%;background:var(--sun);box-shadow:0 0 12px var(--sun);animation:blink 1.6s infinite}
+.bulbs i:nth-child(2n){animation-delay:.8s;background:var(--pink);box-shadow:0 0 12px var(--pink)}
+@keyframes blink{50%{opacity:.25}}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.mode{text-align:left;background:var(--stage-2);border:2px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s, transform .15s}
+.mode:hover{border-color:var(--sun);transform:translateY(-2px)}
+.mode h3{color:var(--sun)}
+.mode.off{opacity:.5}
+.toggle{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.sw{width:52px;height:30px;border-radius:999px;background:var(--stage-3);position:relative;transition:background .15s;flex:none}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:var(--ink);transition:left .15s}
+.toggle.on .sw{background:var(--pink)}
+.toggle.on .sw::after{left:26px}
+
+/* jugadores */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--stage-3);font-weight:600;border:2px solid transparent}
+.chip.sel{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 22%, var(--stage-3))}
+.chip .x{opacity:.6;font-weight:800}
+.code{font-family:var(--f-display);font-size:clamp(3rem,12vw,6rem);letter-spacing:.12em;color:var(--sun);line-height:1}
+
+/* menú de juegos */
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.game{text-align:left;border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:8px;min-height:170px;position:relative;overflow:hidden;color:#1b1033;transition:transform .15s}
+.game:hover{transform:translateY(-3px) rotate(-.4deg)}
+.game h3{font-size:1.25rem}
+.game p{font-size:.92rem;font-weight:600;opacity:.85}
+.game .tags{margin-top:auto;display:flex;flex-wrap:wrap;gap:6px}
+.game .tags span{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;background:rgba(27,16,51,.15);padding:3px 8px;border-radius:999px}
+.game .glyph{position:absolute;right:-8px;top:-14px;font-family:var(--f-display);font-size:4.6rem;opacity:.16}
+
+/* escenario de juego */
+.stagebox{background:var(--stage-2);border:1px solid var(--line);border-radius:22px;padding:clamp(16px,3vw,30px);display:flex;flex-direction:column;gap:18px}
+.q{font-family:var(--f-body);font-weight:800;font-size:clamp(1.4rem,3.6vw,2.4rem);line-height:1.2;text-wrap:balance}
+.timer{font-family:var(--f-display);font-size:2.2rem;color:var(--sun);font-variant-numeric:tabular-nums;min-width:3ch;text-align:center}
+.timer.low{color:var(--bad);animation:blink .5s infinite}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.opt{display:flex;align-items:center;gap:12px;padding:18px;border-radius:16px;font-weight:800;font-size:clamp(1rem,2.4vw,1.35rem);color:#1b1033;text-align:left;min-height:72px}
+.opt .k{font-family:var(--f-display);font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(27,16,51,.18);display:grid;place-items:center;flex:none}
+.c0{background:var(--coral)}.c1{background:var(--sun)}.c2{background:var(--teal)}.c3{background:var(--blue)}
+.opt.dim{opacity:.25}
+.opt.win{outline:5px solid var(--ink);transform:scale(1.02)}
+.list{display:flex;flex-direction:column;gap:8px}
+.li{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--stage-3);font-weight:600}
+.li b{margin-left:auto;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:999px;background:var(--pink)}
+.big-word{font-family:var(--f-display);font-size:clamp(2rem,8vw,4rem);color:var(--sun);text-align:center;line-height:1.05;word-break:break-word}
+.cover{position:fixed;inset:0;background:var(--stage);z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));text-align:center}
+
+/* marcador */
+.score-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:10px 14px;border-radius:12px;background:var(--stage-3)}
+.score-row .pts{font-family:var(--f-display);font-size:1.4rem;font-variant-numeric:tabular-nums;color:var(--sun)}
+.rank{font-family:var(--f-display);width:2ch;color:var(--muted)}
+.mini{width:36px;height:36px;border-radius:10px;background:var(--stage-2);font-weight:800}
+
+/* rosco */
+.rosco-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;align-items:center}
+.rosco{width:100%;max-width:440px;margin:0 auto;aspect-ratio:1;display:block}
+.rosco text{font-family:var(--f-display);font-size:15px}
+
+/* 100 chilenos */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
+.tile{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;background:var(--blue);color:#0b1640;font-weight:800;font-size:1.15rem;min-height:58px;text-align:left}
+.tile .n{font-family:var(--f-display);width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(11,22,64,.2);flex:none}
+.tile .p{margin-left:auto;font-family:var(--f-display);font-size:1.3rem}
+.tile.hid{background:var(--stage-3);color:var(--muted)}
+.tile.flip{animation:flip .45s}
+@keyframes flip{0%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+.strikes{display:flex;gap:8px}
+.strikes span{font-family:var(--f-display);font-size:2.2rem;color:var(--stage-3)}
+.strikes span.on{color:var(--bad)}
+.bigx{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:40;font-family:var(--f-display);font-size:min(60vw,22rem);color:var(--bad);animation:xpop .9s forwards}
+@keyframes xpop{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.05);opacity:1}80%{opacity:1}100%{opacity:0}}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.team{padding:14px;border-radius:14px;background:var(--stage-3);display:flex;flex-direction:column;gap:2px;border:3px solid transparent}
+.team.act{border-color:var(--sun)}
+.team .pts{font-family:var(--f-display);font-size:2rem;color:var(--sun)}
+
+/* onda */
+.dial{width:100%;max-width:560px;margin:0 auto;display:block;touch-action:none}
+.spectrum{display:flex;justify-content:space-between;gap:10px;font-weight:800;font-size:clamp(1rem,3vw,1.4rem)}
+.spectrum span:first-child{color:var(--teal)}
+.spectrum span:last-child{color:var(--coral);text-align:right}
+
+/* dibujo */
+.canvas-box{position:relative;width:100%;max-width:560px;margin:0 auto;aspect-ratio:1;background:#fffaf0;border-radius:16px;overflow:hidden;touch-action:none}
+.canvas-box canvas{width:100%;height:100%;display:block}
+.pal{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pal button{width:38px;height:38px;border-radius:50%;border:3px solid transparent}
+.pal button.on{border-color:var(--ink)}
+.feed{max-height:260px;overflow:auto}
+
+/* teléfono */
+.phone{max-width:520px;margin:0 auto;width:100%}
+.buzz{width:min(78vw,300px);aspect-ratio:1;border-radius:50%;background:var(--coral);box-shadow:0 10px 0 #a63a2b, 0 0 40px rgba(255,106,85,.5);font-family:var(--f-display);font-size:2.4rem;color:#2d0b05;margin:10px auto;display:grid;place-items:center}
+.buzz:active{transform:translateY(8px);box-shadow:0 2px 0 #a63a2b}
+.secret{min-height:220px;border-radius:22px;background:var(--stage-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center;width:100%}
+input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;background:none}
+.yr{font-family:var(--f-display);font-size:3.4rem;color:var(--sun);text-align:center}
+
+.note{border-left:4px solid var(--sun);padding:8px 12px;background:var(--stage-3);border-radius:0 10px 10px 0;font-size:.92rem}
+@media (max-width:520px){ .teams{grid-template-columns:1fr} .q{font-size:1.3rem} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+<div id="app"></div>
+<script>
+// ===== Contenido de los juegos =====
+// x:1 = contenido +18 (solo aparece con el filtro activado)
+
+const TRIVIA = [
+  // Chile
+  {c:'Chile', q:'¿Cuál es la capital de la Región de Magallanes?', o:['Punta Arenas','Puerto Natales','Coyhaique','Puerto Williams'], a:0},
+  {c:'Chile', q:'¿En qué año ocurrió el terremoto de Valdivia, el más fuerte jamás registrado?', o:['1939','1960','1985','2010'], a:1},
+  {c:'Chile', q:'¿Quién compuso la música del himno nacional de Chile?', o:['Eusebio Lillo','Violeta Parra','Ramón Carnicer','Bernardo de Vera y Pintado'], a:2},
+  {c:'Chile', q:'¿Cuántas regiones tiene Chile actualmente?', o:['13','15','16','17'], a:2},
+  {c:'Chile', q:'¿Qué escritora chilena ganó el Premio Nobel de Literatura en 1945?', o:['Isabel Allende','Gabriela Mistral','María Luisa Bombal','Marcela Paz'], a:1},
+  {c:'Chile', q:'¿En qué año ganó Chile su primera Copa América?', o:['2007','2011','2015','2016'], a:2},
+  {c:'Chile', q:'¿Cuál es el volcán más alto de Chile?', o:['Licancabur','Osorno','Villarrica','Ojos del Salado'], a:3},
+  {c:'Chile', q:'¿Qué tenista chileno llegó al número 1 del mundo en 1998?', o:['Fernando González','Nicolás Massú','Marcelo Ríos','Nicolás Jarry'], a:2},
+  {c:'Chile', q:'¿En qué ciudad funciona el Congreso Nacional?', o:['Santiago','Valparaíso','Viña del Mar','Rancagua'], a:1},
+  {c:'Chile', q:'¿Qué árbol llama "pehuén" el pueblo mapuche?', o:['Araucaria','Alerce','Canelo','Quillay'], a:0},
+  {c:'Chile', q:'¿En qué año se realizó el primer Festival de Viña del Mar?', o:['1960','1969','1975','1981'], a:0},
+  {c:'Chile', q:'¿Cuál es la flor nacional de Chile?', o:['Añañuca','Copihue','Rosa','Lirio del campo'], a:1},
+  {c:'Chile', q:'¿Qué medalla ganaron Massú y González en el dobles de Atenas 2004?', o:['Oro','Plata','Bronce','Ninguna'], a:0},
+  {c:'Chile', q:'¿Qué actor chileno protagoniza la serie The Mandalorian?', o:['Benjamín Vicuña','Alfredo Castro','Pedro Pascal','Santiago Cabrera'], a:2},
+  {c:'Chile', q:'¿Con cuántos países limita Chile?', o:['2','3','4','5'], a:1},
+  {c:'Chile', q:'¿Cómo se llamaba el programa de Don Francisco que duró 53 años?', o:['Sábado Gigante','Viva el Lunes','Morandé con Compañía','Martes 13'], a:0},
+  // Geografía
+  {c:'Geografía', q:'¿Cuál es el océano más grande del planeta?', o:['Atlántico','Índico','Pacífico','Ártico'], a:2},
+  {c:'Geografía', q:'¿Cuál es la capital de Australia?', o:['Sídney','Melbourne','Canberra','Perth'], a:2},
+  {c:'Geografía', q:'¿Qué país tiene la mayor población del mundo?', o:['China','India','Estados Unidos','Indonesia'], a:1},
+  {c:'Geografía', q:'¿Cuál es la montaña más alta del mundo?', o:['K2','Aconcagua','Kilimanjaro','Everest'], a:3},
+  {c:'Geografía', q:'¿Cuál es la capital de Canadá?', o:['Toronto','Ottawa','Montreal','Vancouver'], a:1},
+  {c:'Geografía', q:'¿Cuál es el desierto cálido más grande del mundo?', o:['Sahara','Atacama','Gobi','Kalahari'], a:0},
+  {c:'Geografía', q:'¿En qué continente está Egipto?', o:['Asia','África','Europa','Oceanía'], a:1},
+  {c:'Geografía', q:'¿Cuál es la capital de Japón?', o:['Osaka','Kioto','Tokio','Seúl'], a:2},
+  // Historia
+  {c:'Historia', q:'¿En qué año llegó el ser humano a la Luna?', o:['1965','1969','1972','1975'], a:1},
+  {c:'Historia', q:'¿En qué año cayó el Muro de Berlín?', o:['1985','1989','1991','1993'], a:1},
+  {c:'Historia', q:'¿Quién pintó la Mona Lisa?', o:['Miguel Ángel','Rafael','Leonardo da Vinci','Botticelli'], a:2},
+  {c:'Historia', q:'¿En qué año llegó Cristóbal Colón a América?', o:['1452','1492','1500','1520'], a:1},
+  {c:'Historia', q:'¿En qué año se formó la Primera Junta Nacional de Gobierno de Chile?', o:['1810','1818','1823','1833'], a:0},
+  {c:'Historia', q:'¿Qué civilización construyó Machu Picchu?', o:['Maya','Azteca','Inca','Olmeca'], a:2},
+  {c:'Historia', q:'¿En qué año terminó la Segunda Guerra Mundial?', o:['1918','1939','1945','1950'], a:2},
+  {c:'Historia', q:'¿Quién fue el primer presidente de Estados Unidos?', o:['Abraham Lincoln','Thomas Jefferson','George Washington','John Adams'], a:2},
+  // Ciencia
+  {c:'Ciencia', q:'¿Cuál es el símbolo químico del oro?', o:['Or','Au','Ag','Go'], a:1},
+  {c:'Ciencia', q:'¿Cuántos huesos tiene el cuerpo humano adulto?', o:['186','206','226','306'], a:1},
+  {c:'Ciencia', q:'¿Qué planeta está más cerca del Sol?', o:['Venus','Marte','Mercurio','Tierra'], a:2},
+  {c:'Ciencia', q:'¿Qué gas absorben las plantas para hacer la fotosíntesis?', o:['Oxígeno','Nitrógeno','Dióxido de carbono','Helio'], a:2},
+  {c:'Ciencia', q:'¿A qué velocidad aproximada viaja la luz?', o:['3.000 km/s','30.000 km/s','300.000 km/s','3.000.000 km/s'], a:2},
+  {c:'Ciencia', q:'¿Cuál es el órgano más grande del cuerpo humano?', o:['Hígado','Piel','Pulmones','Intestino'], a:1},
+  {c:'Ciencia', q:'¿Cuántos corazones tiene un pulpo?', o:['1','2','3','4'], a:2},
+  {c:'Ciencia', q:'¿Quién formuló la teoría de la relatividad?', o:['Isaac Newton','Albert Einstein','Nikola Tesla','Stephen Hawking'], a:1},
+  {c:'Ciencia', q:'¿Cuál es el planeta más grande del sistema solar?', o:['Saturno','Júpiter','Neptuno','Urano'], a:1},
+  // Deportes
+  {c:'Deportes', q:'¿Cada cuántos años se juega el Mundial de fútbol masculino?', o:['2','3','4','5'], a:2},
+  {c:'Deportes', q:'¿Qué país ganó el Mundial de Qatar 2022?', o:['Francia','Brasil','Argentina','Croacia'], a:2},
+  {c:'Deportes', q:'¿Quién es el máximo goleador histórico de la selección chilena?', o:['Iván Zamorano','Marcelo Salas','Alexis Sánchez','Eduardo Vargas'], a:2},
+  {c:'Deportes', q:'¿En qué deporte se habla de un "birdie"?', o:['Tenis','Golf','Bádminton','Béisbol'], a:1},
+  {c:'Deportes', q:'¿En qué ciudad se realizaron los Juegos Olímpicos de 2024?', o:['Tokio','Los Ángeles','París','Londres'], a:2},
+  {c:'Deportes', q:'¿Qué club chileno ganó la Copa Libertadores en 1991?', o:['Universidad de Chile','Colo-Colo','Universidad Católica','Cobreloa'], a:1},
+  {c:'Deportes', q:'¿Cuántos anillos tiene el símbolo olímpico?', o:['4','5','6','7'], a:1},
+  {c:'Deportes', q:'¿Cuántos jugadores tiene un equipo de vóleibol en cancha?', o:['5','6','7','9'], a:1},
+  // Cine y TV
+  {c:'Cine y TV', q:'¿Cómo se llama el protagonista de El Rey León?', o:['Mufasa','Scar','Simba','Timón'], a:2},
+  {c:'Cine y TV', q:'¿Qué película chilena ganó el Óscar a Mejor Película Extranjera en 2018?', o:['No','Una mujer fantástica','El club','Machuca'], a:1},
+  {c:'Cine y TV', q:'¿En qué ciudad vive la familia Simpson?', o:['Shelbyville','Springfield','Quahog','South Park'], a:1},
+  {c:'Cine y TV', q:'¿Qué cortometraje chileno ganó el Óscar a Mejor Cortometraje Animado en 2016?', o:['Bestia','Historia de un oso','31 minutos','Ogú y Mampato'], a:1},
+  {c:'Cine y TV', q:'¿Quién dirigió Titanic (1997)?', o:['Steven Spielberg','James Cameron','Christopher Nolan','Ridley Scott'], a:1},
+  {c:'Cine y TV', q:'¿En qué saga se dice "Que la Fuerza te acompañe"?', o:['Star Trek','Star Wars','Dune','Matrix'], a:1},
+  {c:'Cine y TV', q:'¿Cómo se llama el conductor de noticias de 31 Minutos?', o:['Juan Carlos Bodoque','Tulio Triviño','Patana','Policarpo Avendaño'], a:1},
+  // Música
+  {c:'Música', q:'¿A quién apodaban "el Rey del Pop"?', o:['Elvis Presley','Prince','Michael Jackson','Freddie Mercury'], a:2},
+  {c:'Música', q:'¿De qué país es el grupo ABBA?', o:['Noruega','Suecia','Dinamarca','Finlandia'], a:1},
+  {c:'Música', q:'¿Qué folclorista chilena compuso "Gracias a la vida"?', o:['Margot Loyola','Violeta Parra','Isabel Parra','Mon Laferte'], a:1},
+  {c:'Música', q:'¿Cuántas cuerdas tiene una guitarra clásica?', o:['4','5','6','7'], a:2},
+  {c:'Música', q:'¿De qué país es Shakira?', o:['Venezuela','Colombia','México','Panamá'], a:1},
+  {c:'Música', q:'¿Qué banda chilena grabó "El baile de los que sobran"?', o:['Los Prisioneros','Los Tres','La Ley','Lucybell'], a:0},
+  {c:'Música', q:'¿Quién era el vocalista de Queen?', o:['Mick Jagger','Freddie Mercury','Robert Plant','Bono'], a:1},
+  // Varios
+  {c:'Varios', q:'¿Cuántos días tiene un año bisiesto?', o:['364','365','366','367'], a:2},
+  {c:'Varios', q:'¿Qué idioma tiene más hablantes nativos en el mundo?', o:['Inglés','Español','Chino mandarín','Hindi'], a:2},
+  {c:'Varios', q:'¿De qué fruta se obtiene el pisco?', o:['Manzana','Uva','Ciruela','Durazno'], a:1},
+  {c:'Varios', q:'¿Cuántos lados tiene un hexágono?', o:['5','6','7','8'], a:1},
+  {c:'Varios', q:'¿Cuántos minutos tiene un día?', o:['1.240','1.440','1.640','2.400'], a:1},
+  {c:'Varios', q:'¿Cuál es la moneda del Reino Unido?', o:['Euro','Libra esterlina','Dólar','Corona'], a:1},
+  // +18 (tragos)
+  {c:'Copete', q:'¿Qué destilado es la base del mojito?', o:['Vodka','Ron','Tequila','Gin'], a:1, x:1},
+  {c:'Copete', q:'¿De qué país es originario el tequila?', o:['España','Perú','México','Cuba'], a:2, x:1},
+  {c:'Copete', q:'¿Qué trago chileno lleva pipeño, helado de piña y granadina?', o:['Cola de mono','Terremoto','Ponche a la romana','Borgoña'], a:1, x:1},
+  {c:'Copete', q:'¿Qué trago navideño chileno lleva aguardiente, leche, café y canela?', o:['Cola de mono','Navegado','Ponche','Pihuelo'], a:0, x:1},
+  {c:'Copete', q:'¿Qué lleva un pisco sour tradicional además de pisco y limón?', o:['Jugo de piña y menta','Azúcar y clara de huevo','Leche y canela','Ginger ale'], a:1, x:1},
+];
+
+// Roscos: [letra, 'Empieza'|'Contiene', pista, respuesta]
+const ROSCOS = [
+  {n:'Rosco clásico', l:[
+    ['A','Empieza','Fruta verde con la que se hace guacamole y que en Chile llamamos palta','Aguacate'],
+    ['B','Empieza','Deporte que se juega encestando una pelota en un aro','Básquetbol'],
+    ['C','Empieza','Ave que aparece en el escudo de Chile junto al huemul','Cóndor'],
+    ['D','Empieza','Mamífero marino muy inteligente que vive en manada','Delfín'],
+    ['E','Empieza','Animal terrestre más grande, con trompa y colmillos','Elefante'],
+    ['F','Empieza','Instrumento de viento metálico que se toca de lado','Flauta'],
+    ['G','Empieza','Animal doméstico que maúlla','Gato'],
+    ['H','Empieza','Ciervo que aparece en el escudo de Chile','Huemul'],
+    ['I','Empieza','Gran masa de hielo que flota en el mar','Iceberg'],
+    ['J','Empieza','Animal con el cuello más largo del mundo','Jirafa'],
+    ['L','Empieza','Satélite natural de la Tierra','Luna'],
+    ['M','Empieza','Mes en que comienzan las clases en Chile','Marzo'],
+    ['N','Empieza','Apellido del poeta chileno que ganó el Nobel en 1971','Neruda'],
+    ['Ñ','Contiene','Celebración del día en que naciste','Cumpleaños'],
+    ['O','Empieza','Instrumento de tubos típico de las iglesias','Órgano'],
+    ['P','Empieza','Isla chilena famosa por los moáis: isla de...','Pascua'],
+    ['Q','Empieza','Producto lácteo que se derrite dentro de una empanada frita','Queso'],
+    ['R','Empieza','Roedor que, según la tradición, deja dinero por los dientes de leche','Ratón'],
+    ['S','Empieza','Estrella alrededor de la cual gira la Tierra','Sol'],
+    ['T','Empieza','Infusión caliente que no puede faltar en la once','Té'],
+    ['U','Empieza','Caballo mitológico con un cuerno en la frente','Unicornio'],
+    ['V','Empieza','Ciudad puerto chilena declarada Patrimonio de la Humanidad','Valparaíso'],
+    ['X','Contiene','Auto de alquiler con taxímetro','Taxi'],
+    ['Y','Empieza','Embarcación de recreo de lujo','Yate'],
+    ['Z','Empieza','Hortaliza naranja que le encanta a los conejos','Zanahoria'],
+  ]},
+  {n:'Rosco mundial', l:[
+    ['A','Empieza','Desierto más árido del mundo, en el norte de Chile','Atacama'],
+    ['B','Empieza','Capital de Alemania','Berlín'],
+    ['C','Empieza','Capital de Venezuela','Caracas'],
+    ['D','Empieza','Período de diez años','Década'],
+    ['E','Empieza','Fenómeno en que la Luna tapa al Sol','Eclipse'],
+    ['F','Empieza','Palito con cabeza que se raspa para encender fuego','Fósforo'],
+    ['G','Empieza','Nombre de la poeta chilena que fue el primer Nobel latinoamericano','Gabriela'],
+    ['H','Empieza','Cordillera donde está el monte Everest','Himalaya'],
+    ['I','Empieza','País europeo con forma de bota','Italia'],
+    ['J','Empieza','Planeta más grande del sistema solar','Júpiter'],
+    ['L','Empieza','Capital de Perú','Lima'],
+    ['M','Empieza','Compositor austríaco autor de La flauta mágica','Mozart'],
+    ['N','Empieza','Río que atraviesa Egipto','Nilo'],
+    ['Ñ','Empieza','Ave grande de la Patagonia parecida al avestruz','Ñandú'],
+    ['O','Empieza','Volcán y ciudad del sur de Chile con forma de cono casi perfecto','Osorno'],
+    ['P','Empieza','Instrumento musical de teclas blancas y negras','Piano'],
+    ['Q','Empieza','Idioma del Imperio inca que aún se habla en los Andes','Quechua'],
+    ['R','Empieza','País más grande del mundo por superficie','Rusia'],
+    ['S','Empieza','Capital de Corea del Sur','Seúl'],
+    ['T','Empieza','Felino grande de pelaje naranjo con rayas negras','Tigre'],
+    ['U','Empieza','País cuya capital es Montevideo','Uruguay'],
+    ['V','Empieza','Planeta más caliente del sistema solar','Venus'],
+    ['X','Contiene','País cuya capital lleva su mismo nombre y que organizó el Mundial de 1986','México'],
+    ['Y','Empieza','Moneda de Japón','Yen'],
+    ['Z','Empieza','Ciudad española, capital de Aragón','Zaragoza'],
+  ]},
+  {n:'Rosco chileno', l:[
+    ['A','Empieza','Ciudad más al norte de Chile, la de la "eterna primavera"','Arica'],
+    ['B','Empieza','Barrio bohemio de Santiago a los pies del cerro San Cristóbal','Bellavista'],
+    ['C','Empieza','Baile nacional de Chile','Cueca'],
+    ['D','Empieza','Así le decimos a las fiestas patrias de septiembre: el...','Dieciocho'],
+    ['E','Empieza','Masa rellena de pino que no falta en septiembre','Empanada'],
+    ['F','Empieza','Lugar con ramadas, cueca y anticuchos en fiestas patrias','Fonda'],
+    ['G','Empieza','Camélido salvaje del norte y de la Patagonia chilena','Guanaco'],
+    ['H','Empieza','Choclo molido cocido envuelto en sus propias hojas','Humita'],
+    ['I','Empieza','Ciudad del norte donde está la ZOFRI','Iquique'],
+    ['J','Empieza','Archipiélago donde está la isla Robinson Crusoe','Juan Fernández'],
+    ['L','Empieza','Ciudad de la Región de Coquimbo famosa por su faro monumental','La Serena'],
+    ['M','Empieza','Bebida dulce con trigo y duraznos deshidratados','Mote con huesillo'],
+    ['N','Empieza','Planta del sur de hojas enormes cuyo tallo se come con sal','Nalca'],
+    ['Ñ','Empieza','Región chilena cuya capital es Chillán','Ñuble'],
+    ['O','Empieza','Volcán más alto de Chile: ... del Salado','Ojos'],
+    ['P','Empieza','Preparación al horno con choclo molido, pino y pollo','Pastel de choclo'],
+    ['Q','Empieza','Anfiteatro de Viña del Mar donde se hace el Festival','Quinta Vergara'],
+    ['R','Empieza','Nombre originario de Isla de Pascua','Rapa Nui'],
+    ['S','Empieza','Masa frita redonda que se come con pebre o "pasada"','Sopaipilla'],
+    ['T','Empieza','Parque nacional magallánico famoso por sus torres de granito','Torres del Paine'],
+    ['U','Empieza','Club de fútbol azul apodado "el Romántico Viajero"','Universidad de Chile'],
+    ['V','Empieza','Ciudad conocida como la "Ciudad Jardín"','Viña del Mar'],
+    ['X','Contiene','Lo contrario de fracaso','Éxito'],
+    ['Y','Empieza','Comuna del Biobío famosa por la peregrinación a San Sebastián cada 20 de enero','Yumbel'],
+    ['Z','Empieza','Hortaliza naranja que lleva la sopaipilla sureña','Zapallo'],
+  ]},
+];
+
+// 100 chilenos dijeron — encuestas ficticias armadas para el juego
+// [respuesta, puntos, [alias aceptados]]
+const FEUD = [
+  {q:'Algo que se lleva a un asado', a:[['Carne',32,['asado','vacuno','costillar']],['Carbón',20,['carbon','leña']],['Pan',15,['marraqueta','hallulla']],['Bebidas',12,['bebida','coca']],['Choripán',9,['chorizo','longaniza','choripan']],['Ensalada',7,['ensaladas','tomate','chilena']],['Hielo',5,[]]]},
+  {q:'Comida típica de Fiestas Patrias', a:[['Empanada',38,['empanadas']],['Anticucho',20,['anticuchos','brocheta']],['Choripán',15,['choripan','chorizo']],['Chicha',10,[]],['Asado',8,['carne']],['Sopaipilla',5,['sopaipillas']],['Mote con huesillo',4,['mote','huesillo']]]},
+  {q:'Lo primero que haces al despertar', a:[['Mirar el celular',40,['celular','telefono','whatsapp','redes']],['Ir al baño',22,['baño','bano','pipi','orinar']],['Apagar la alarma',15,['alarma','despertador']],['Tomar café',10,['cafe','desayunar','desayuno']],['Ducharse',8,['ducha','bañarse','banarse']],['Estirarse',5,['estirar','bostezar']]]},
+  {q:'Excusa para llegar tarde', a:[['Taco',35,['trafico','tráfico','taco','congestion']],['El metro',20,['metro']],['Me quedé dormido',18,['dormido','quede dormido','alarma']],['La micro',12,['micro','bus','transantiago','red']],['Lluvia',8,['llovio','llovía']],['Se me olvidó algo',7,['olvide','olvido','se me olvido']]]},
+  {q:'Algo que se pierde siempre en la casa', a:[['Las llaves',40,['llaves','llave']],['El control remoto',20,['control','remoto']],['El celular',15,['celular','telefono']],['Los lentes',10,['lentes','anteojos']],['La billetera',8,['billetera','cartera']],['Un calcetín',7,['calcetin','calcetines','calceta']]]},
+  {q:'Algo que hay en una playa', a:[['Arena',30,[]],['Mar',25,['agua','olas']],['Quitasol',15,['sombrilla','parasol']],['Toalla',12,['toallas']],['Bloqueador',10,['protector','bloqueador solar']],['Salvavidas',8,['bañero','banero']]]},
+  {q:'Lugar de vacaciones en Chile', a:[['La Serena',28,['serena','coquimbo']],['Viña del Mar',22,['viña','vina','viña del mar']],['Pucón',18,['pucon','villarrica']],['San Pedro de Atacama',12,['san pedro','atacama']],['Chiloé',10,['chiloe','castro']],['Torres del Paine',6,['torres','paine','patagonia']],['Algarrobo',4,['litoral central','el quisco']]]},
+  {q:'Algo que se le pone a un completo', a:[['Palta',35,[]],['Tomate',25,[]],['Mayonesa',20,['mayo']],['Chucrut',8,['chucrut']],['Ketchup',7,['katchup','salsa de tomate']],['Ají',5,['aji','salsa americana']]]},
+  {q:'Algo que da miedo', a:[['Las arañas',30,['araña','arañas','arana']],['La oscuridad',20,['oscuridad','oscuro']],['Las alturas',18,['altura','alturas']],['Un terremoto',15,['temblor','terremoto','sismo']],['Los payasos',10,['payaso','payasos']],['Los fantasmas',7,['fantasma','fantasmas']]]},
+  {q:'Animal que se tiene de mascota', a:[['Perro',45,['perros','perrito']],['Gato',30,['gatos','gatito']],['Pez',8,['peces','pescado']],['Hámster',7,['hamster']],['Loro',5,['pajaro','pájaro','canario']],['Conejo',3,[]],['Tortuga',2,[]]]},
+  {q:'Algo que se hace en el metro', a:[['Mirar el celular',40,['celular','telefono']],['Escuchar música',22,['musica','audifonos']],['Dormir',15,['dormitar']],['Leer',10,['libro']],['Conversar',8,['hablar']],['Ir apretado',5,['apretado','empujar']]]},
+  {q:'Regalo típico para el Día de la Madre', a:[['Flores',35,['ramo','flor']],['Chocolates',20,['chocolate','bombones']],['Perfume',15,['colonia']],['Ropa',12,['polera','chaleco']],['Desayuno',10,['desayuno a la cama']],['Tarjeta',8,['carta','dibujo']]]},
+  {q:'Algo que haces después de un carrete', x:1, a:[['Dormir',30,[]],['Comer completo',25,['comer','completo','comida','churrasco']],['Vomitar',15,['guatear']],['Tomar agua',12,['agua','hidratarse']],['Arrepentirse',10,['arrepentimiento']],['Revisar mensajes',8,['mensajes','whatsapp','celular']]]},
+  {q:'Excusa para no ir a trabajar', x:1, a:[['Estoy enfermo',40,['enfermo','enferma','enfermedad']],['Licencia médica',20,['licencia']],['Problema familiar',15,['familia','familiar']],['Se cortó el agua',10,['agua','corte de agua','luz']],['Hora al médico',9,['medico','doctor','dentista']],['Trámite',6,['tramite','banco']]]},
+  {q:'Algo que se lleva a una fiesta', x:1, a:[['Copete',40,['alcohol','trago','pisco','cerveza','vino']],['Hielo',18,[]],['Bebida',15,['bebidas','coca']],['Picoteo',12,['papas fritas','snack','comida']],['Parlante',8,['musica','música']],['Vasos',7,['vaso']]]},
+  {q:'Lo primero que miras en una cita', x:1, a:[['Los ojos',30,['ojos','mirada']],['La sonrisa',25,['sonrisa','dientes']],['La ropa',15,['ropa','pinta']],['Las manos',10,['manos','uñas']],['El celular',10,['celular']],['El cuerpo',10,['cuerpo','poto']]]},
+];
+
+// El Impostor — categorías y palabras
+const IMP = {
+  'Lugares': ['Playa','Hospital','Aeropuerto','Colegio','Supermercado','Estadio','Cine','Gimnasio','Restaurante','Metro','Banco','Iglesia','Zoológico','Biblioteca','Hotel','Circo','Peluquería','Farmacia','Feria libre','Mall'],
+  'Comida chilena': ['Empanada','Completo','Pastel de choclo','Cazuela','Sopaipilla','Charquicán','Porotos granados','Curanto','Chorrillana','Churrasco','Humita','Mote con huesillo','Marraqueta','Calzones rotos','Leche asada'],
+  'Animales': ['Perro','Gato','León','Pingüino','Jirafa','Cóndor','Delfín','Tiburón','Caballo','Elefante','Mono','Serpiente','Llama','Pulpo','Abeja'],
+  'Famosos chilenos': ['Don Francisco','Alexis Sánchez','Arturo Vidal','Mon Laferte','Myriam Hernández','Pablo Neruda','Gabriela Mistral','Marcelo Ríos','Pedro Pascal','Kramer','Tulio Triviño','Condorito'],
+  'Objetos': ['Paraguas','Celular','Cepillo de dientes','Guitarra','Bicicleta','Microondas','Reloj','Mochila','Tijeras','Control remoto','Sartén','Almohada','Llaves','Lentes de sol'],
+  'Profesiones': ['Bombero','Dentista','Profesor','Carabinero','Chef','Piloto','Contador','Peluquero','Futbolista','Veterinario','Garzón','Astronauta'],
+  'Carrete +18': ['Motel','Despedida de soltero','Resaca','Tinder','Discoteque','Piscola','After','Karaoke','Borrachera','Primera cita','Ex','Juntarse en la plaza'],
+};
+const IMP_X = ['Carrete +18'];
+
+// Onda (Wavelength) — espectros
+const WAVES = [
+  ['Frío','Caliente'],['Barato','Caro'],['Aburrido','Entretenido'],['Feo','Bonito'],['Inútil','Útil'],
+  ['Sano','Poco sano'],['Mala película','Buena película'],['Fácil','Difícil'],['Silencioso','Ruidoso'],['Pequeño','Enorme'],
+  ['Pasado de moda','Moderno'],['Débil','Fuerte'],['Triste','Feliz'],['Sobrevalorado','Subvalorado'],['Comida barata','Comida de lujo'],
+  ['Lento','Rápido'],['Común','Raro'],['Seguro','Peligroso'],['Mal superpoder','Buen superpoder'],['Mala mascota','Buena mascota'],
+  ['Pasatiempo aburrido','Pasatiempo entretenido'],['Nada chileno','Muy chileno'],['Para niños','Para adultos'],['Huele mal','Huele rico'],
+  ['Mejor en invierno','Mejor en verano'],['Villano','Héroe'],['Sin talento','Talentoso'],['No es arte','Es arte'],['Desayuno','Cena'],
+  ['Se olvida rápido','Inolvidable'],['Mal regalo','Buen regalo'],['Ciudad fea','Ciudad bonita'],['Canción mala','Canción buena'],
+  ['Cuesta poco aprender','Cuesta mucho aprender'],['Normal','Raro de hacer en público'],
+  ['Mala primera cita','Primera cita perfecta',1],['Ex tóxico','Ex ideal',1],['Trago suave','Trago fuerte',1],['Carrete fome','Carrete legendario',1],['Mensaje inocente','Mensaje atrevido',1],
+];
+
+// Dibuja y adivina — palabras
+const DRAW = ['Casa','Perro','Gato','Árbol','Sol','Luna','Avión','Bicicleta','Guitarra','Pizza','Helado','Paraguas','Reloj','Zapato','Corona','Robot','Fantasma','Cohete','Pez','Mariposa','Tortuga','Flor','Castillo','Pirata','Dragón','Montaña','Volcán','Playa','Barco','Tren','Auto','Semáforo','Teléfono','Computador','Lentes','Gorro','Calcetín','Cama','Silla','Puerta','Ventana','Llave','Candado','Libro','Lápiz','Tijeras','Escalera','Puente','Faro','Iglú','Pingüino','Elefante','Jirafa','Serpiente','Araña','Abeja','Caracol','Pulpo','Ballena','Tiburón','Cóndor','Empanada','Completo','Sandía','Plátano','Uva','Torta','Huevo frito','Hamburguesa','Copa','Trofeo','Pelota','Arco de fútbol','Bandera','Corazón','Estrella','Arcoíris','Nube','Lluvia','Rayo','Nieve','Muñeco de nieve','Vela','Regalo','Globo','Payaso','Mago','Sirena','Unicornio','Vampiro','Zombi','Astronauta','Bombero','Doctor','Cocinero','Cueca','Moái','Volantín','Trompo','Micro','Metro','Tetera','Marraqueta','Cactus','Hongo','Calavera','Ancla','Tenedor','Cuchara','Olla','Mesa','Sillón','Televisor','Cámara','Micrófono','Audífonos','Batería','Piano','Trompeta'];
+const DRAW_X = ['Resaca','Beso','Piscola','Motel','Despedida de soltero','Tinder','Cita a ciegas','Ex','Borracho','Selfie','Karaoke','Ducha'];
+
+// ¿Quién es más probable?
+const WHO = [
+  '¿Quién es más probable que llegue tarde a su propio matrimonio?',
+  '¿Quién es más probable que se haga famoso en TikTok?',
+  '¿Quién es más probable que se pierda con Google Maps abierto?',
+  '¿Quién es más probable que sobreviva a un apocalipsis zombi?',
+  '¿Quién es más probable que se quede dormido en una fiesta?',
+  '¿Quién es más probable que gane el Kino y lo gaste en una semana?',
+  '¿Quién es más probable que llore viendo una película animada?',
+  '¿Quién es más probable que adopte diez gatos?',
+  '¿Quién es más probable que se olvide del cumpleaños de su mamá?',
+  '¿Quién es más probable que termine viviendo en otro país?',
+  '¿Quién es más probable que pida lo mismo de siempre en el restaurante?',
+  '¿Quién es más probable que discuta con un garzón?',
+  '¿Quién es más probable que se coma la comida de otro del refri?',
+  '¿Quién es más probable que se convierta en millonario?',
+  '¿Quién es más probable que se ría en un momento serio?',
+  '¿Quién es más probable que deje el celular sin batería?',
+  '¿Quién es más probable que se sepa la letra completa de todas las canciones?',
+  '¿Quién es más probable que haga trampa en un juego de mesa?',
+  '¿Quién es más probable que escriba un libro?',
+  '¿Quién es más probable que se tropiece en público?',
+  '¿Quién es más probable que tenga una cuenta secreta en redes sociales?',
+  '¿Quién es más probable que se aprenda un baile completo de TikTok?',
+  '¿Quién es más probable que pierda las llaves esta semana?',
+  '¿Quién es más probable que se coma una empanada de un bocado?',
+  '¿Quién es más probable que organice el próximo asado?',
+  '¿Quién es más probable que se ponga a cantar en el karaoke sin que se lo pidan?',
+  '¿Quién es más probable que deje un mensaje en visto por tres días?',
+  '¿Quién es más probable que se una a una secta sin darse cuenta?',
+  '¿Quién es más probable que compre algo inútil a las 3 de la mañana?',
+  '¿Quién es más probable que se haga amigo del conductor del Uber?',
+  '¿Quién es más probable que planifique sus vacaciones con planilla Excel?',
+  '¿Quién es más probable que pida perdón a un mueble después de chocarlo?',
+  '¿Quién es más probable que termine haciendo stand-up?',
+  '¿Quién es más probable que vea una serie completa en un fin de semana?',
+  '¿Quién es más probable que se ofrezca de voluntario sin saber para qué?',
+  '¿Quién es más probable que tenga 2.000 correos sin leer?',
+];
+const WHO_X = [
+  '¿Quién es más probable que le mande un audio a su ex a las 4 de la mañana?',
+  '¿Quién es más probable que termine bailando arriba de la mesa?',
+  '¿Quién es más probable que tenga la peor resaca mañana?',
+  '¿Quién es más probable que se enamore en un carrete?',
+  '¿Quién es más probable que vuelva con su ex?',
+  '¿Quién es más probable que tenga más matches en Tinder?',
+  '¿Quién es más probable que se despierte en otra comuna sin saber cómo llegó?',
+  '¿Quién es más probable que haya stalkeado a su ex esta semana?',
+  '¿Quién es más probable que coquetee con el garzón para que le hagan descuento?',
+  '¿Quién es más probable que se quede pegado en el after?',
+  '¿Quién es más probable que tenga una cita con alguien de la oficina?',
+  '¿Quién es más probable que suba una historia de la que se arrepienta?',
+  '¿Quién es más probable que diga "hoy no tomo" y termine siendo el último en irse?',
+  '¿Quién es más probable que tenga un romance de verano?',
+  '¿Quién es más probable que se pase de copas en un matrimonio?',
+  '¿Quién es más probable que le dé like por error a una foto antigua de su crush?',
+  '¿Quién es más probable que haga una despedida de soltero/a inolvidable?',
+  '¿Quién es más probable que pida el número del DJ?',
+];
+
+// Adivina la canción — banco con año de lanzamiento
+const SONGS = [
+  ['Jailhouse Rock','Elvis Presley',1957],['Johnny B. Goode','Chuck Berry',1958],['Hey Jude','The Beatles',1968],
+  ['Todos juntos','Los Jaivas',1972],['Bohemian Rhapsody','Queen',1975],['Dancing Queen','ABBA',1976],
+  ["Stayin' Alive",'Bee Gees',1977],['I Will Survive','Gloria Gaynor',1978],['Eye of the Tiger','Survivor',1982],
+  ['Africa','Toto',1982],['Billie Jean','Michael Jackson',1983],['Girls Just Want to Have Fun','Cyndi Lauper',1983],
+  ['Take On Me','a-ha',1985],['El baile de los que sobran','Los Prisioneros',1986],["Livin' on a Prayer",'Bon Jovi',1986],
+  ['I Wanna Dance with Somebody','Whitney Houston',1987],['El hombre que yo amo','Myriam Hernández',1988],['Like a Prayer','Madonna',1989],
+  ['Ojalá que llueva café','Juan Luis Guerra',1989],['De música ligera','Soda Stereo',1990],['Tren al sur','Los Prisioneros',1990],
+  ['Entre dos tierras','Héroes del Silencio',1990],['Rayando el sol','Maná',1990],['Smells Like Teen Spirit','Nirvana',1991],
+  ['Bidi Bidi Bom Bom','Selena',1994],['Wonderwall','Oasis',1995],['...Baby One More Time','Britney Spears',1998],
+  ['Ciega, sordomuda','Shakira',1998],["Livin' la Vida Loca",'Ricky Martin',1999],['Aserejé','Las Ketchup',2002],
+  ['Lose Yourself','Eminem',2002],['Crazy in Love','Beyoncé',2003],['Mr. Brightside','The Killers',2003],
+  ['Gasolina','Daddy Yankee',2004],['Atrévete-te-te','Calle 13',2005],["Hips Don't Lie",'Shakira',2006],
+  ['Viva la Vida','Coldplay',2008],['Rolling in the Deep','Adele',2010],['Somebody That I Used to Know','Gotye',2011],
+  ['Gangnam Style','PSY',2012],['Happy','Pharrell Williams',2013],['Uptown Funk','Mark Ronson ft. Bruno Mars',2014],
+  ['Tu falta de querer','Mon Laferte',2015],['Despacito','Luis Fonsi ft. Daddy Yankee',2017],['Shape of You','Ed Sheeran',2017],
+  ['Malamente','Rosalía',2018],['Blinding Lights','The Weeknd',2019],['Levitating','Dua Lipa',2020],
+  ['Tití Me Preguntó','Bad Bunny',2022],['Provenza','Karol G',2022],['Bzrp Music Sessions, Vol. 53','Bizarrap y Shakira',2023],
+];
+
+// ===================== utilidades =====================
+const $app = document.getElementById('app');
+const COLORS = ['#ff6a55','#ffc23d','#27c7b4','#5a83ff','#ff4fa3','#3ddc84','#c58bff','#ff9a3d','#7fe0ff','#f2f27a','#ff8fb8','#a6e36b'];
+const PEN = ['#1b1033','#e63946','#1d6fe0','#16a34a','#f59e0b','#9333ea'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const safeColor = c => COLORS.includes(c) ? c : COLORS[0];
+function lev(a, b) { const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let prev = Array.from({length:n+1}, (_, i) => i); for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; } return prev[n]; }
+function matches(input, cands) {
+  const inp = norm(input); if (!inp) return false;
+  return cands.map(norm).some(c => {
+    if (!c) return false;
+    if (inp === c) return true;
+    if (c.length > 3 && (' ' + inp + ' ').includes(' ' + c + ' ')) return true;
+    if (inp.length > 3 && c.includes(inp) && inp.length >= c.length * 0.6) return true;
+    const tol = c.length > 7 ? 2 : c.length > 3 ? 1 : 0;
+    return lev(inp, c) <= tol;
+  });
+}
+const fmt = s => s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : String(s);
+
+// ===================== estado =====================
+const S = {
+  view: 'home', mode: null,            // mode: 'local' | 'host' | 'phone'
+  adult: false, players: [], scores: {}, code: '', kc: 0, g: null, seen: {},
+  cfg: { trivN: 10, trivT: 20, drawT: 80, roscoT: 150 },
+  teams: ['Equipo Rojo', 'Equipo Azul'], pname: '', err: '', showScores: false,
+};
+const LS = 'noche-juegos-v1';
+try { const d = JSON.parse(localStorage.getItem(LS) || '{}'); Object.assign(S.cfg, d.cfg || {}); S.adult = !!d.adult; S.players = d.players || []; S.scores = d.scores || {}; S.teams = d.teams || S.teams; S.pname = d.pname || ''; } catch (e) {}
+function save() { try { localStorage.setItem(LS, JSON.stringify({cfg:S.cfg, adult:S.adult, players:S.players, scores:S.scores, teams:S.teams, pname:S.pname})); } catch (e) {} }
+
+// ===================== sala (room) =====================
+let ROOM = null, NR = null, roomChecked = false;
+(async () => { try { ROOM = await window.claude?.use?.('room'); } catch (e) { ROOM = null; } roomChecked = true; if (S.view === 'home') render(); })();
+
+const P = { st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
+
+async function joinRoom(code) {
+  if (!ROOM) throw new Error('sin sala');
+  if (NR) { try { await NR.leave(); } catch (e) {} NR = null; }
+  NR = await ROOM.join('noche-' + code.toLowerCase());
+  return NR;
+}
+
+function hostPlayers() {
+  if (!NR) return [];
+  return NR.peers().filter(p => !p.sameTab && p.presence && p.presence.role === 'player' && typeof p.presence.name === 'string')
+    .map(p => ({ id: p.peer, name: String(p.presence.name).slice(0, 16), color: safeColor(p.presence.color) }));
+}
+function roster() { return S.mode === 'host' ? hostPlayers() : S.players; }
+function addPts(name, n) { S.scores[name] = (S.scores[name] || 0) + n; save(); }
+function scoreOf(name) { return S.scores[name] || 0; }
+
+let lastPub = null;
+function pub(st) {
+  lastPub = st;
+  if (S.mode !== 'host' || !NR) return;
+  const sc = {}; hostPlayers().forEach(p => sc[p.name] = scoreOf(p.name));
+  NR.presence({ role: 'host', code: S.code, st: { ...st, sc } }).catch(e => console.warn('presence', e && e.message));
+}
+
+function onHostPeers(ch) {
+  const g = S.g;
+  for (const p of ch.peers) {
+    if (p.sameTab || !p.presence || p.presence.role !== 'player') continue;
+    const name = String(p.presence.name || '').slice(0, 16);
+    if (name && !(name in S.scores)) S.scores[name] = 0;
+    const a = p.presence.a;
+    if (g && a && a.k === g.key) {
+      const sig = JSON.stringify(a);
+      if (S.seen[p.peer] !== sig) { S.seen[p.peer] = sig; const G = GAMES[g.id]; G.onAnswer && G.onAnswer({ id: p.peer, name, color: safeColor(p.presence.color) }, a); }
+    }
+    if (g && g.id === 'draw' && p.presence.dr && p.presence.dr.k === g.key && g.drawer && p.peer === g.drawer.id) drawIngest(p.presence.dr);
+  }
+  if (ch.joined.length || ch.left.length) { if (lastPub) pub(lastPub); render(); }
+  else if (S.view !== 'game') render();
+}
+
+function onPhonePeers(ch) {
+  const me = ch.peers.find(p => p.sameTab); if (me) P.me = me.peer;
+  const host = ch.peers.find(p => p.presence && p.presence.role === 'host');
+  P.host = !!host;
+  const st = host ? host.presence.st : null;
+  const sig = JSON.stringify(st);
+  if (sig !== P.sig) {
+    const prev = P.st;
+    P.sig = sig; P.st = st;
+    if (!prev || !st || prev.k !== st.k || prev.ph !== st.ph) P.at = Date.now();
+    if (!prev || !st || prev.k !== st.k) { P.peek = false; }
+    if (st && st.t === 'draw' && (!prev || prev.k !== st.k)) { P.strokes = []; P.cur = null; P.clr = 0; }
+    render();
+  }
+}
+
+// ===================== temporizador =====================
+const T = { end: 0, cb: null, fired: true };
+function startTimer(sec, cb) { T.end = Date.now() + sec * 1000; T.cb = cb; T.fired = false; }
+function stopTimer() { T.fired = true; T.cb = null; }
+function tLeft() { return T.fired ? 0 : Math.max(0, Math.ceil((T.end - Date.now()) / 1000)); }
+function tick() {
+  const now = Date.now();
+  document.querySelectorAll('[data-end]').forEach(el => { const s = Math.max(0, Math.ceil((+el.dataset.end - now) / 1000)); el.textContent = fmt(s); el.classList.toggle('low', s <= 5 && s > 0); });
+  if (!T.fired && now >= T.end) { T.fired = true; const cb = T.cb; T.cb = null; cb && cb(); }
+  if (S.g && GAMES[S.g.id] && GAMES[S.g.id].tick) GAMES[S.g.id].tick();
+}
+setInterval(tick, 200);
+const timerEl = () => `<div class="timer" data-end="${T.end}">${fmt(tLeft())}</div>`;
+const phoneTimer = st => st && st.dur ? `<div class="timer" data-end="${P.at + st.dur * 1000}">${fmt(st.dur)}</div>` : '';
+
+// ===================== render =====================
+const AFTER = [];
+function render() {
+  const ae = document.activeElement; let keep = null;
+  if (ae && ae.id && ae.tagName === 'INPUT' && ae.type !== 'range') keep = { id: ae.id, v: ae.value, s: ae.selectionStart, e: ae.selectionEnd };
+  let html = '';
+  try { html = VIEWS[S.view](); } catch (e) { console.error(e); html = `<div class="panel">Algo falló al dibujar esta pantalla. <button class="btn" data-a="menu">Volver al menú</button></div>`; }
+  $app.innerHTML = html;
+  if (keep) { const el = document.getElementById(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch (e) {} } }
+  while (AFTER.length) { try { AFTER.shift()(); } catch (e) { console.error(e); } }
+  tick();
+}
+
+const topBar = (extra = '') => `<div class="top"><div class="logo">NOCHE DE <span>JUEGOS</span></div><div class="row">${extra}</div></div>`;
+const chipP = p => `<span class="chip"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`;
+
+const VIEWS = {};
+
+VIEWS.home = () => {
+  const noRoom = roomChecked && !ROOM;
+  return `
+  <div class="hero">
+    <div class="bulbs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <h1>NOCHE DE <em>JUEGOS</em></h1>
+    <p class="muted">Trivia, rosco, 100 chilenos dijeron, impostor, onda, dibujos, votaciones y canciones.</p>
+  </div>
+  <div class="modes">
+    <button class="mode" data-a="goLocal"><span class="eyebrow">Un dispositivo</span><h3>Jugar aquí</h3><p class="muted">Todo en esta pantalla. Ideal para la tele o para ir pasándose el celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goHost"><span class="eyebrow">Pantalla principal</span><h3>Crear sala</h3><p class="muted">Esta pantalla muestra el juego y cada uno responde desde su celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goJoin"><span class="eyebrow">Jugador</span><h3>Unirme con mi celular</h3><p class="muted">Ingresa el código que aparece en la pantalla principal.</p></button>
+  </div>
+  ${noRoom ? `<p class="note">La sala con celulares no está disponible en esta vista. Funciona cuando cada jugador abre este mismo enlace con su cuenta de claude.ai (miembros de tu organización o invitados al artefacto). Mientras tanto, usa "Jugar aquí".</p>` : ''}
+  <div class="panel spread">
+    <div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><div><b>Contenido +18</b><div class="small muted">Suma preguntas de carrete y copete. Apágalo si juegan niños.</div></div></div>
+  </div>
+  ${S.err ? `<p class="note">${esc(S.err)}</p>` : ''}`;
+};
+
+VIEWS.localSetup = () => `
+  ${topBar(`<button class="btn alt" data-a="home">Inicio</button>`)}
+  <div class="panel stack">
+    <h2>¿Quiénes juegan?</h2>
+    <div class="row"><input id="pn" placeholder="Nombre del jugador" maxlength="16" data-enter="addPlayer" style="flex:1"><button class="btn" data-a="addPlayer">Agregar</button></div>
+    <div class="chips">${S.players.map((p, i) => `<button class="chip" data-a="rmPlayer" data-i="${i}" title="Quitar"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} <span class="x">×</span></button>`).join('') || '<span class="muted">Agrega al menos 2 jugadores.</span>'}</div>
+    <div class="row"><button class="btn big" data-a="menu" ${S.players.length < 2 ? 'disabled' : ''}>Elegir juego</button></div>
+  </div>`;
+
+VIEWS.hostLobby = () => {
+  const ps = hostPlayers();
+  return `
+  ${topBar(`<button class="btn alt" data-a="leave">Cerrar sala</button>`)}
+  <div class="stagebox" style="text-align:center;align-items:center">
+    <span class="eyebrow">Código de la sala</span>
+    <div class="code">${esc(S.code)}</div>
+    <p class="muted" style="max-width:52ch">Cada jugador abre este mismo enlace en su celular, toca <b>Unirme con mi celular</b> y escribe el código.</p>
+    <div class="chips" style="justify-content:center">${ps.map(chipP).join('') || '<span class="muted">Esperando jugadores…</span>'}</div>
+    <button class="btn big" data-a="menu" ${ps.length < 2 ? 'disabled' : ''}>Elegir juego (${ps.length} conectados)</button>
+  </div>`;
+};
+
+VIEWS.join = () => `
+  ${topBar(`<button class="btn alt" data-a="home">Inicio</button>`)}
+  <div class="panel stack phone">
+    <h2>Unirme</h2>
+    <label class="small muted" for="jn">Tu nombre</label><input id="jn" maxlength="16" value="${esc(S.pname)}" placeholder="Ej: Ale">
+    <label class="small muted" for="jc">Código de la sala</label><input id="jc" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;font-family:var(--f-display);font-size:1.6rem;letter-spacing:.2em" data-enter="doJoin">
+    <button class="btn big" data-a="doJoin">Entrar</button>
+    ${S.err ? `<p class="note">${esc(S.err)}</p>` : ''}
+  </div>`;
+
+const GAME_LIST = [
+  { id: 'trivia', name: 'Trivia relámpago', d: 'Preguntas con 4 opciones. Más rápido, más puntos.', glyph: '?', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'rosco', name: 'El Rosco', d: 'De la A a la Z contra el reloj, dos equipos.', glyph: 'A·Z', c: 'c1', tags: ['Equipos', 'Pantalla'] },
+  { id: 'feud', name: '100 chilenos dijeron', d: 'Adivinen las respuestas más populares de la encuesta.', glyph: '100', c: 'c2', tags: ['Equipos', 'Pantalla'] },
+  { id: 'imp', name: 'El Impostor', d: 'Todos saben la palabra menos uno. ¿Quién miente?', glyph: '¿?', c: 'c3', tags: ['Celulares', 'Pasar el celular'] },
+  { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Celulares', 'Spotify'] },
+];
+
+VIEWS.menu = () => {
+  const r = roster();
+  return `
+  ${topBar(`${S.mode === 'host' ? `<span class="pill">Sala <b>${esc(S.code)}</b> · ${r.length} jugadores</span>` : ''}<button class="btn alt" data-a="scores">Marcador</button><button class="btn alt" data-a="${S.mode === 'host' ? 'lobby' : 'goLocal'}">Jugadores</button>`)}
+  <div class="spread"><h2>Elige un juego</h2><div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><b>+18</b></div></div>
+  <div class="games">${GAME_LIST.map(g => `<button class="game ${g.c}" data-a="startGame" data-g="${g.id}"><span class="glyph">${g.glyph}</span><h3>${g.name}</h3><p>${g.d}</p><div class="tags">${g.tags.map(t => `<span>${t}</span>`).join('')}</div></button>`).join('')}</div>`;
+};
+
+VIEWS.scores = () => {
+  const names = [...new Set([...roster().map(p => p.name), ...Object.keys(S.scores)])];
+  const colorOf = n => (roster().find(p => p.name === n) || {}).color || 'var(--muted)';
+  const list = names.map(n => ({ n, s: scoreOf(n) })).sort((a, b) => b.s - a.s);
+  return `
+  ${topBar(`<button class="btn alt" data-a="back">Volver</button>`)}
+  <div class="stagebox">
+    <div class="spread"><h2>Marcador</h2><button class="btn bad" data-a="resetScores">Reiniciar puntajes</button></div>
+    <div class="list">${list.map((x, i) => `<div class="score-row"><span class="rank">${i + 1}</span><span class="row"><span class="dot" style="background:${colorOf(x.n)}"></span><b>${esc(x.n)}</b></span><span class="pts">${x.s}</span><span class="row"><button class="mini" data-a="adj" data-n="${esc(x.n)}" data-v="-50" aria-label="Restar 50">−</button><button class="mini" data-a="adj" data-n="${esc(x.n)}" data-v="50" aria-label="Sumar 50">+</button></span></div>`).join('') || '<p class="muted">Aún no hay puntajes.</p>'}</div>
+  </div>`;
+};
+
+VIEWS.game = () => {
+  const G = GAMES[S.g.id];
+  const meta = GAME_LIST.find(x => x.id === S.g.id);
+  return `${topBar(`${S.mode === 'host' ? `<span class="pill">Sala <b>${esc(S.code)}</b></span>` : ''}<button class="btn alt" data-a="scores">Marcador</button><button class="btn alt" data-a="menu">Menú</button>`)}
+  <div class="spread"><h2>${meta.name}</h2></div>
+  ${G.view()}`;
+};
+
+// ===================== teléfono =====================
+VIEWS.phone = () => {
+  const st = P.st;
+  const score = st && st.sc ? (st.sc[S.pname] ?? 0) : 0;
+  const head = `<div class="top"><span class="chip"><span class="dot" style="background:${S.pcolor}"></span>${esc(S.pname)}</span><span class="pill">Sala ${esc(S.code)} · <b>${score}</b> pts</span><button class="btn alt" data-a="leave">Salir</button></div>`;
+  let body = '';
+  if (!P.host || !st) body = `<div class="secret"><h3>Buscando la pantalla principal…</h3><p class="muted">Si no aparece, revisa el código.</p></div>`;
+  else body = (PHONE[st.t] || PHONE.wait)(st);
+  return `<div class="phone stack">${head}${body}</div>`;
+};
+function answer(v, extra = {}) { if (!NR || !P.st) return; P.sent[P.st.k] = v; NR.presence({ a: { k: P.st.k, v, ...extra } }).catch(() => {}); render(); }
+const sentFor = st => P.sent[st.k];
+
+const PHONE = {};
+PHONE.wait = st => `<div class="secret"><h3>${esc(st.msg || 'Mira la pantalla principal')}</h3><p class="muted">Cuando empiece un juego que use el celular, aparecerá aquí.</p></div>`;
+PHONE.screen = st => `<div class="secret"><h3>Este juego se ve en la pantalla</h3><p class="muted">${esc(st.msg || '')}</p></div>`;
+PHONE.trivia = st => {
+  const s = sentFor(st);
+  if (st.ph === 'q') {
+    if (s !== undefined) return `<div class="secret"><h3>Respuesta enviada</h3><p class="muted">Espera a los demás…</p>${phoneTimer(st)}</div>`;
+    return `<div class="spread"><span class="eyebrow">Pregunta ${st.n} de ${st.of}</span>${phoneTimer(st)}</div><p class="q" style="font-size:1.15rem">${esc(st.q)}</p>
+      <div class="opts">${st.o.map((o, i) => `<button class="opt c${i}" data-a="pAns" data-v="${i}"><span class="k">${'ABCD'[i]}</span>${esc(o)}</button>`).join('')}</div>`;
+  }
+  const pts = st.pts ? st.pts[P.me] : undefined;
+  const ok = s !== undefined && +s === st.c;
+  return `<div class="secret"><span class="eyebrow">${s === undefined ? 'No respondiste' : ok ? '¡Correcto!' : 'Incorrecto'}</span><h2 style="color:${ok ? 'var(--ok)' : 'var(--ink)'}">${ok ? '+' + (pts || 0) : esc(st.o[st.c])}</h2><p class="muted">${ok ? 'Bien ahí.' : 'Era la respuesta correcta.'}</p></div>`;
+};
+PHONE.vote = st => {
+  if (st.ph === 'res') return `<div class="stack"><p class="q" style="font-size:1.1rem">${esc(st.q)}</p><div class="list">${(st.res || []).map(r => `<div class="li">${esc(r.name)}<b>${r.n}</b></div>`).join('')}</div></div>`;
+  const s = sentFor(st);
+  const opts = st.opts.filter(o => !(st.noSelf && o.id === P.me));
+  if (s !== undefined) return `<div class="secret"><h3>Voto enviado</h3><p class="muted">Votaste por ${esc((st.opts.find(o => o.id === s) || {}).name || '')}</p></div>`;
+  return `<p class="q" style="font-size:1.15rem">${esc(st.q)}</p><div class="list">${opts.map(o => `<button class="btn alt big" data-a="pAns" data-v="${esc(o.id)}" data-str="1">${esc(o.name)}</button>`).join('')}</div>`;
+};
+PHONE.imp = st => {
+  const isImp = (st.imp || []).includes(P.me);
+  return `<button class="secret" data-a="pPeek">${P.peek
+    ? (isImp ? `<span class="eyebrow">Tu rol</span><div class="big-word" style="color:var(--coral)">IMPOSTOR</div>${st.hint ? `<p>Categoría: <b>${esc(st.cat)}</b></p>` : ''}<p class="muted">Disimula. Nadie debe darse cuenta.</p>`
+      : `<span class="eyebrow">${esc(st.cat)}</span><div class="big-word">${esc(st.w)}</div><p class="muted">Di una palabra relacionada, sin delatarla.</p>`)
+    : `<h3>Toca para ver tu rol</h3><p class="muted">Tápalo de los demás.</p>`}</button><p class="small muted" style="text-align:center">Toca de nuevo para ocultar.</p>`;
+};
+PHONE.wave = st => {
+  const isPsy = st.ps === P.me;
+  const spec = `<div class="spectrum"><span>${esc(st.l)}</span><span>${esc(st.r)}</span></div>`;
+  if (isPsy && st.ph !== 'res') return `<span class="eyebrow">Eres el psíquico</span>${spec}${dialSVG({ target: st.tg })}<p class="note">Di en voz alta una pista que ubique el objetivo entre <b>${esc(st.l)}</b> y <b>${esc(st.r)}</b>. Nada de números.</p>`;
+  if (st.ph === 'guess') {
+    const s = sentFor(st);
+    if (s !== undefined) return `<div class="secret"><h3>Enviado: ${s}</h3><p class="muted">Espera la revelación.</p></div>`;
+    const v = P.wv ?? 50;
+    return `${spec}${dialSVG({ guess: v })}<input type="range" id="wv" min="0" max="100" value="${v}" data-in="wv" aria-label="Posición en el dial"><button class="btn big" data-a="pWave">Enviar</button>`;
+  }
+  if (st.ph === 'res') { const pts = st.pts ? st.pts[P.me] : undefined; return `<div class="secret"><h3>El objetivo era ${st.tg}</h3>${pts !== undefined ? `<h2 style="color:var(--sun)">+${pts}</h2>` : ''}</div>`; }
+  return `<div class="secret"><h3>Escucha la pista</h3><p class="muted">${esc(st.psn || '')} está pensando…</p></div>`;
+};
+PHONE.draw = st => {
+  if (st.ph === 'res') return `<div class="secret"><span class="eyebrow">La palabra era</span><div class="big-word">${esc(st.w)}</div></div>`;
+  if (st.dr === P.me) {
+    AFTER.push(phoneCanvasInit);
+    return `<div class="spread"><span>Dibuja: <b style="color:var(--sun);font-size:1.3rem">${esc(st.w)}</b></span>${phoneTimer(st)}</div>
+      <div class="canvas-box"><canvas id="pc" width="700" height="700"></canvas></div>
+      <div class="pal">${PEN.map((c, i) => `<button style="background:${c}" class="${P.pen === i ? 'on' : ''}" data-a="pPen" data-v="${i}" aria-label="Color ${i + 1}"></button>`).join('')}<button class="btn alt" data-a="pClear">Borrar todo</button></div>`;
+  }
+  const solved = (st.solved || []).includes(S.pname);
+  if (solved) return `<div class="secret"><h2 style="color:var(--ok)">¡Adivinaste!</h2><p class="muted">Era ${esc(st.w)}.</p></div>`;
+  return `<div class="spread"><span class="eyebrow">Adivina el dibujo</span>${phoneTimer(st)}</div><p class="muted">Mira la pantalla principal y escribe tu respuesta. Puedes intentar varias veces.</p>
+    <div class="row"><input id="gs" placeholder="¿Qué es?" data-enter="pGuess" style="flex:1" autocomplete="off"><button class="btn" data-a="pGuess">Enviar</button></div>`;
+};
+PHONE.song = st => {
+  if (st.ph === 'res') { const pts = st.pts ? st.pts[P.me] : undefined; return `<div class="secret"><span class="eyebrow">Era</span><h2>${esc(st.ans || '')}</h2>${pts ? `<h2 style="color:var(--sun)">+${pts}</h2>` : ''}</div>`; }
+  if (st.m === 'year') {
+    const s = sentFor(st);
+    if (s !== undefined) return `<div class="secret"><h3>Apostaste por ${s}</h3><p class="muted">Espera la revelación.</p></div>`;
+    const y = P.yr ?? 1995;
+    return `<span class="eyebrow">Canción ${st.n} · ¿De qué año es?</span><div class="yr" id="yrv">${y}</div><input type="range" id="yr" min="1955" max="2025" value="${y}" data-in="yr" aria-label="Año"><button class="btn big" data-a="pYear">Enviar año</button>`;
+  }
+  const s = sentFor(st);
+  const pos = st.q ? st.q.indexOf(P.me) : -1;
+  if (s !== undefined) return `<div class="secret"><h2>${pos === 0 ? '¡Primero!' : pos > 0 ? 'Puesto ' + (pos + 1) : 'Buzz enviado'}</h2><p class="muted">${pos === 0 ? 'Di el título y el artista en voz alta.' : 'Espera tu turno.'}</p></div>`;
+  return `<span class="eyebrow" style="text-align:center">Canción ${st.n} · ¿Sabes cuál es?</span><button class="buzz" data-a="pBuzz">BUZZ</button>`;
+};
+
+// ===================== juegos =====================
+const GAMES = {};
+function newGame(id, extra = {}) { S.g = { id, key: '', ...extra }; S.seen = {}; S.view = 'game'; }
+function nextKey() { S.g.key = S.g.id + '-' + (++S.kc) + '-' + Math.random().toString(36).slice(2, 6); S.seen = {}; }
+const pickChips = (sel, act) => `<div class="chips">${roster().map(p => `<button class="chip ${sel[p.id] ? 'sel' : ''}" data-a="${act}" data-id="${esc(p.id)}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`).join('')}</div>`;
+
+// ---------- TRIVIA ----------
+GAMES.trivia = {
+  start() {
+    const qs = shuffle(TRIVIA.filter(q => S.adult || !q.x)).slice(0, S.cfg.trivN);
+    newGame('trivia', { qs, i: 0 }); this.ask();
+  },
+  ask() {
+    const g = S.g; nextKey(); g.ph = 'q'; g.ans = {}; g.right = {};
+    const q = g.qs[g.i]; g.opts = shuffle([0, 1, 2, 3]); g.c = g.opts.indexOf(q.a);
+    if (S.mode === 'host') startTimer(S.cfg.trivT, () => this.reveal()); else stopTimer();
+    this.pub(); render();
+  },
+  pub() { const g = S.g, q = g.qs[g.i]; pub({ t: 'trivia', k: g.key, ph: g.ph === 'q' ? 'q' : 'r', q: q.q, o: g.opts.map(i => q.o[i]), dur: g.ph === 'q' ? tLeft() : 0, c: g.ph === 'q' ? undefined : g.c, pts: g.pts, n: g.i + 1, of: g.qs.length }); },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'q' || g.ans[p.id]) return; const v = +a.v; if (!(v >= 0 && v < 4)) return;
+    g.ans[p.id] = { v, left: Math.max(0, (T.end - Date.now()) / 1000), name: p.name };
+    if (Object.keys(g.ans).length >= hostPlayers().length) this.reveal(); else render();
+  },
+  reveal() {
+    const g = S.g; if (g.ph !== 'q') return; stopTimer(); g.ph = 'r'; g.pts = {};
+    if (S.mode === 'host') for (const [id, an] of Object.entries(g.ans)) { const pts = an.v === g.c ? Math.round((500 + 500 * an.left / S.cfg.trivT) / 10) * 10 : 0; g.pts[id] = pts; if (pts) addPts(an.name, pts); }
+    this.pub(); render();
+  },
+  next() {
+    const g = S.g;
+    if (S.mode !== 'host') for (const id of Object.keys(g.right)) { const p = S.players.find(x => x.id === id); if (p) addPts(p.name, 100); }
+    g.i++; if (g.i >= g.qs.length) { g.ph = 'end'; pub({ t: 'wait', msg: 'Terminó la trivia' }); render(); } else this.ask();
+  },
+  view() {
+    const g = S.g;
+    if (g.ph === 'end') return endView('Fin de la trivia');
+    const q = g.qs[g.i];
+    const host = S.mode === 'host';
+    const n = Object.keys(g.ans).length, tot = hostPlayers().length;
+    return `<div class="stagebox">
+      <div class="spread"><span class="pill">${esc(q.c)} · ${g.i + 1}/${g.qs.length}</span>${g.ph === 'q' && host ? timerEl() : ''}</div>
+      <p class="q">${esc(q.q)}</p>
+      <div class="opts">${g.opts.map((oi, i) => `<div class="opt c${i} ${g.ph === 'r' ? (i === g.c ? 'win' : 'dim') : ''}"><span class="k">${'ABCD'[i]}</span>${esc(q.o[oi])}</div>`).join('')}</div>
+      ${g.ph === 'q'
+        ? `<div class="spread">${host ? `<span class="muted">${n} de ${tot} respondieron</span>` : `<span class="muted">Respondan en voz alta o con la mano.</span>`}<button class="btn" data-a="g" data-f="reveal">Revelar</button></div>`
+        : `${host ? `<div class="list">${Object.entries(g.ans).sort((a, b) => (g.pts[b[0]] || 0) - (g.pts[a[0]] || 0)).map(([id, an]) => `<div class="li">${esc(an.name)} <span class="muted">${'ABCD'[an.v]}</span><b>${g.pts[id] ? '+' + g.pts[id] : '—'}</b></div>`).join('') || '<p class="muted">Nadie respondió.</p>'}</div>`
+          : `<div class="stack"><span class="eyebrow">¿Quién acertó? (+100)</span>${pickChips(g.right, 'trivRight')}</div>`}
+          <div class="row"><button class="btn big" data-a="g" data-f="next">${g.i + 1 < g.qs.length ? 'Siguiente pregunta' : 'Ver resultado'}</button></div>`}
+    </div>`;
+  },
+};
+
+function endView(title) {
+  const r = roster().map(p => ({ ...p, s: scoreOf(p.name) })).sort((a, b) => b.s - a.s);
+  return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">${esc(title)}</span>
+    ${r[0] ? `<div class="big-word">${esc(r[0].name)}</div><p class="muted">va ganando la noche con ${r[0].s} puntos</p>` : ''}
+    <div class="list" style="width:100%;max-width:480px">${r.map(p => `<div class="li"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}<b>${p.s}</b></div>`).join('')}</div>
+    <button class="btn big" data-a="menu">Otro juego</button></div>`;
+}
+
+// ---------- ¿QUIÉN ES MÁS PROBABLE? ----------
+GAMES.who = {
+  start() { newGame('who', { list: shuffle(WHO.concat(S.adult ? WHO_X : [])), i: 0 }); this.ask(); },
+  ask() {
+    const g = S.g; nextKey(); g.ph = 'vote'; g.votes = {}; g.res = null; g.count = false; g.q = g.list[g.i % g.list.length];
+    g.opts = roster().map(p => ({ id: p.id, name: p.name }));
+    if (S.mode === 'host') startTimer(25, () => this.reveal()); else stopTimer();
+    this.pub(); render();
+  },
+  pub() { const g = S.g; pub({ t: 'vote', k: g.key, ph: g.ph, q: g.q, opts: g.opts, res: g.res, dur: g.ph === 'vote' ? tLeft() : 0 }); },
+  onAnswer(p, a) { const g = S.g; if (g.ph !== 'vote' || !g.opts.some(o => o.id === a.v)) return; g.votes[p.id] = a.v; if (Object.keys(g.votes).length >= hostPlayers().length) this.reveal(); else render(); },
+  reveal() {
+    const g = S.g; if (g.ph !== 'vote') return; stopTimer();
+    const c = {}; Object.values(g.votes).forEach(v => c[v] = (c[v] || 0) + 1);
+    g.res = g.opts.map(o => ({ name: o.name, n: c[o.id] || 0 })).filter(r => r.n).sort((a, b) => b.n - a.n);
+    g.ph = 'res'; this.pub(); render();
+  },
+  next() { S.g.i++; this.ask(); },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    const max = g.res && g.res[0] ? g.res[0].n : 1;
+    return `<div class="stagebox" style="text-align:center">
+      <p class="q">${esc(g.q)}</p>
+      ${g.ph === 'vote'
+        ? (host ? `<div class="row center">${timerEl()}<span class="muted">${Object.keys(g.votes).length} de ${hostPlayers().length} votaron</span></div><div class="row center"><button class="btn" data-a="g" data-f="reveal">Ver resultados</button></div>`
+          : `${g.count ? `<div class="big-word" id="cnt">3</div>` : `<p class="muted">A la cuenta de tres, todos apuntan a la persona.</p>`}<div class="row center"><button class="btn big" data-a="g" data-f="countdown">3, 2, 1… ¡apunten!</button><button class="btn alt" data-a="g" data-f="next">Siguiente</button></div>`)
+        : `<div class="list" style="text-align:left">${g.res.map(r => `<div class="stack" style="gap:4px"><div class="spread"><b>${esc(r.name)}</b><span>${r.n} voto${r.n > 1 ? 's' : ''}</span></div><div class="bar" style="width:${Math.max(6, r.n / max * 100)}%"></div></div>`).join('') || '<p class="muted">Nadie votó.</p>'}</div>
+          <div class="row center"><button class="btn big" data-a="g" data-f="next">Siguiente</button></div>`}
+    </div>`;
+  },
+  countdown() {
+    S.g.count = true; render(); let n = 3;
+    const iv = setInterval(() => { n--; const el = document.getElementById('cnt'); if (!el) { clearInterval(iv); return; } el.textContent = n > 0 ? n : '¡YA!'; if (n <= 0) clearInterval(iv); }, 800);
+  },
+};
+
+// ---------- EL IMPOSTOR ----------
+GAMES.imp = {
+  start() { newGame('imp', { ph: 'setup', cat: 'Aleatoria', nImp: 1, hint: true }); pub({ t: 'wait', msg: 'Preparando El Impostor' }); render(); },
+  cats() { return Object.keys(IMP).filter(c => S.adult || !IMP_X.includes(c)); },
+  begin() {
+    const g = S.g, r = roster();
+    if (r.length < 3) { g.warn = 'El Impostor necesita al menos 3 jugadores.'; render(); return; }
+    nextKey();
+    const cat = g.cat === 'Aleatoria' ? pick(this.cats()) : g.cat;
+    g.curCat = cat; g.word = pick(IMP[cat]);
+    const n = Math.min(g.nImp, Math.max(1, Math.floor((r.length - 1) / 2)));
+    g.imps = shuffle(r).slice(0, n).map(p => p.id);
+    g.first = pick(r).name; g.votes = {}; g.res = null; g.guessed = false;
+    if (S.mode === 'host') { g.ph = 'see'; this.pub(); } else { g.ph = 'pass'; g.pi = 0; g.show = false; }
+    stopTimer(); render();
+  },
+  pub() {
+    const g = S.g;
+    if (g.ph === 'vote' || g.ph === 'res') pub({ t: 'vote', k: g.key, ph: g.ph, q: '¿Quién es el impostor?', opts: roster().map(p => ({ id: p.id, name: p.name })), noSelf: true, res: g.resList });
+    else pub({ t: 'imp', k: g.key, w: g.word, cat: g.curCat, hint: g.hint, imp: g.imps });
+  },
+  talk() { S.g.ph = 'talk'; startTimer(180, () => {}); render(); },
+  vote() { const g = S.g; nextKey(); g.ph = 'vote'; g.votes = {}; stopTimer(); this.pub(); render(); },
+  onAnswer(p, a) { const g = S.g; if (g.ph !== 'vote' || a.v === p.id || !roster().some(x => x.id === a.v)) return; g.votes[p.id] = a.v; if (Object.keys(g.votes).length >= hostPlayers().length) this.tally(); else render(); },
+  tally() {
+    const g = S.g; const c = {}; Object.values(g.votes).forEach(v => c[v] = (c[v] || 0) + 1);
+    const sorted = Object.entries(c).sort((a, b) => b[1] - a[1]);
+    const top = sorted[0] && (!sorted[1] || sorted[1][1] < sorted[0][1]) ? sorted[0][0] : null;
+    g.resList = roster().map(p => ({ name: p.name, n: c[p.id] || 0 })).filter(x => x.n).sort((a, b) => b.n - a.n);
+    this.accuse(top);
+  },
+  accuse(id) {
+    const g = S.g; g.accused = id; g.caught = !!id && g.imps.includes(id); g.ph = 'res';
+    const r = roster();
+    if (g.caught) r.filter(p => !g.imps.includes(p.id)).forEach(p => addPts(p.name, 100));
+    else r.filter(p => g.imps.includes(p.id)).forEach(p => addPts(p.name, 300));
+    this.pub(); render();
+  },
+  guessedWord() { const g = S.g; if (g.guessed) return; g.guessed = true; roster().filter(p => g.imps.includes(p.id)).forEach(p => addPts(p.name, 200)); render(); },
+  view() {
+    const g = S.g, r = roster(), host = S.mode === 'host';
+    const nm = id => (r.find(p => p.id === id) || {}).name || '?';
+    if (g.ph === 'setup') return `<div class="stagebox">
+      <p class="muted">Todos reciben la misma palabra secreta menos el impostor. Por turnos, cada uno dice una palabra relacionada. Después votan.</p>
+      <div class="stack"><span class="eyebrow">Categoría</span><div class="chips">${['Aleatoria', ...this.cats()].map(c => `<button class="chip ${g.cat === c ? 'sel' : ''}" data-a="impCat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>
+      <div class="stack"><span class="eyebrow">Impostores</span><div class="chips">${[1, 2].map(n => `<button class="chip ${g.nImp === n ? 'sel' : ''}" data-a="impN" data-v="${n}">${n}</button>`).join('')}</div><span class="small muted">Con 2 impostores conviene ser 6 o más.</span></div>
+      <div class="toggle ${g.hint ? 'on' : ''}" data-a="impHint" role="switch" aria-checked="${g.hint}" tabindex="0"><span class="sw"></span><span>El impostor ve la categoría</span></div>
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}
+      <div class="row"><button class="btn big" data-a="g" data-f="begin">Repartir roles</button></div></div>`;
+    if (g.ph === 'pass') {
+      const p = r[g.pi];
+      if (!g.show) return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">${g.pi + 1} de ${r.length}</span><h2>Pásale el dispositivo a</h2><div class="big-word">${esc(p.name)}</div><button class="btn big" data-a="impShow">Soy ${esc(p.name)}, ver mi rol</button></div>`;
+      const isImp = g.imps.includes(p.id);
+      return `<div class="cover"><span class="eyebrow">${esc(p.name)}</span>${isImp ? `<div class="big-word" style="color:var(--coral)">IMPOSTOR</div>${g.hint ? `<p>Categoría: <b>${esc(g.curCat)}</b></p>` : ''}` : `<span class="muted">${esc(g.curCat)}</span><div class="big-word">${esc(g.word)}</div>`}<button class="btn big" data-a="impNext">Ocultar y pasar</button></div>`;
+    }
+    if (g.ph === 'see' || g.ph === 'talk') return `<div class="stagebox" style="text-align:center;align-items:center">
+      ${g.ph === 'see' ? (host ? `<h2>Revisen sus celulares</h2><p class="muted">Cada uno ve su rol en secreto.</p>` : `<h2>Todos vieron su rol</h2>`) : `<h2>¡A conversar!</h2>${timerEl()}`}
+      <p class="q" style="font-size:1.3rem">Parte <span style="color:var(--sun)">${esc(g.first)}</span>. Por turnos, una palabra cada uno.</p>
+      <div class="row center">${g.ph === 'see' ? `<button class="btn big" data-a="g" data-f="talk">Empezar ronda (3 min)</button>` : ''}<button class="btn ${g.ph === 'talk' ? 'big' : 'alt'}" data-a="g" data-f="${host ? 'vote' : 'localVote'}">Ir a votar</button></div></div>`;
+    if (g.ph === 'vote') {
+      if (host) return `<div class="stagebox" style="text-align:center;align-items:center"><h2>¿Quién es el impostor?</h2><p class="muted">Voten desde el celular. ${Object.keys(g.votes).length} de ${hostPlayers().length} votaron.</p><button class="btn" data-a="g" data-f="tally">Cerrar votación</button></div>`;
+      return `<div class="stagebox"><h3>Voten en voz alta y toquen al más votado</h3><div class="chips">${r.map(p => `<button class="chip" data-a="impAccuse" data-id="${esc(p.id)}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`).join('')}<button class="chip" data-a="impAccuse" data-id="">Empate</button></div></div>`;
+    }
+    // res
+    return `<div class="stagebox" style="text-align:center;align-items:center">
+      <span class="eyebrow">${g.accused ? 'Acusaron a ' + esc(nm(g.accused)) : 'Hubo empate'}</span>
+      <h2 style="color:${g.caught ? 'var(--ok)' : 'var(--coral)'}">${g.caught ? '¡Lo pillaron!' : 'El impostor se salvó'}</h2>
+      <p>${g.imps.length > 1 ? 'Los impostores eran' : 'El impostor era'} <b style="color:var(--sun)">${g.imps.map(nm).map(esc).join(' y ')}</b>. La palabra: <b>${esc(g.word)}</b>.</p>
+      <p class="small muted">${g.caught ? '+100 para cada inocente.' : '+300 para el impostor.'}</p>
+      ${g.caught && !g.guessed ? `<button class="btn alt" data-a="g" data-f="guessedWord">El impostor adivinó la palabra (+200)</button>` : ''}
+      <div class="row center"><button class="btn big" data-a="g" data-f="begin">Otra ronda</button><button class="btn alt" data-a="g" data-f="start">Cambiar ajustes</button></div></div>`;
+  },
+  localVote() { S.g.ph = 'vote'; stopTimer(); render(); },
+};
+
+// ---------- ONDA ----------
+function dialPt(v, rad = 90) { const t = Math.PI * (1 - v / 100); return [100 + rad * Math.cos(t), 100 - rad * Math.sin(t)]; }
+function wedge(a, b, fill) { a = Math.max(0, a); b = Math.min(100, b); if (b <= a) return ''; const [x1, y1] = dialPt(a), [x2, y2] = dialPt(b); return `<path d="M100 100 L${x1.toFixed(1)} ${y1.toFixed(1)} A90 90 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${fill}"/>`; }
+function dialSVG({ target, guess, guesses, id }) {
+  let bands = '';
+  if (target !== undefined) bands = wedge(target - 17, target + 17, 'var(--teal)') + wedge(target - 11, target + 11, 'var(--sun)') + wedge(target - 5, target + 5, 'var(--coral)');
+  const needle = v => { const [x, y] = dialPt(v, 86); return `<line x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/><circle cx="100" cy="100" r="8" fill="var(--ink)"/>`; };
+  const marks = (guesses || []).map(gs => { const [x, y] = dialPt(gs.v, 96); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${gs.c}" stroke="var(--stage)" stroke-width="1.5"><title>${esc(gs.n)}: ${gs.v}</title></circle>`; }).join('');
+  return `<svg class="dial" ${id ? `id="${id}"` : ''} viewBox="-4 -4 208 112" role="img" aria-label="Dial">
+    <path d="M10 100 A90 90 0 0 1 190 100 Z" fill="var(--stage-3)"/>${bands}
+    <path d="M10 100 A90 90 0 0 1 190 100" fill="none" stroke="var(--line)" stroke-width="2"/>
+    ${guess !== undefined ? needle(guess) : ''}${marks}</svg>`;
+}
+const waveScore = (g, t) => { const d = Math.abs(g - t); return d <= 5 ? 100 : d <= 11 ? 75 : d <= 17 ? 50 : 0; };
+GAMES.wave = {
+  start() { newGame('wave', { list: shuffle(WAVES.filter(w => S.adult || !w[2])), i: 0, pi: 0 }); this.round(); },
+  round() {
+    const g = S.g, r = roster(); nextKey();
+    g.card = g.list[g.i % g.list.length]; g.tg = 5 + Math.floor(Math.random() * 91);
+    g.psy = r[g.pi % r.length]; g.ph = 'clue'; g.dial = 50; g.guesses = {}; g.pts = null; g.peek = false; stopTimer();
+    this.pub(); render();
+  },
+  pub() { const g = S.g; pub({ t: 'wave', k: g.key, ph: g.ph, l: g.card[0], r: g.card[1], ps: g.psy.id, psn: g.psy.name, tg: g.tg, pts: g.pts }); },
+  open() { S.g.ph = 'guess'; this.pub(); render(); },
+  onAnswer(p, a) { const g = S.g; if (g.ph !== 'guess' || p.id === g.psy.id) return; const v = Math.round(+a.v); if (!(v >= 0 && v <= 100)) return; g.guesses[p.id] = { v, n: p.name, c: p.color }; if (Object.keys(g.guesses).length >= hostPlayers().length - 1) this.reveal(); else render(); },
+  reveal() {
+    const g = S.g; if (g.ph === 'res') return; g.ph = 'res'; g.pts = {};
+    if (S.mode === 'host') {
+      const vals = Object.entries(g.guesses); let sum = 0;
+      vals.forEach(([id, gs]) => { const s = waveScore(gs.v, g.tg); g.pts[id] = s; sum += s; if (s) addPts(gs.n, s); });
+      const ps = vals.length ? Math.round(sum / vals.length / 5) * 5 : 0; g.pts[g.psy.id] = ps; if (ps) addPts(g.psy.name, ps);
+    } else { const s = waveScore(g.dial, g.tg); g.pts.local = s; if (s) addPts(g.psy.name, s); }
+    this.pub(); render();
+  },
+  next() { S.g.i++; S.g.pi++; this.round(); },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    const spec = `<div class="spectrum"><span>← ${esc(g.card[0])}</span><span>${esc(g.card[1])} →</span></div>`;
+    if (g.ph === 'res') {
+      const gl = host ? Object.values(g.guesses) : [];
+      return `<div class="stagebox">${spec}${dialSVG({ target: g.tg, guess: host ? undefined : g.dial, guesses: gl })}
+        <p style="text-align:center">Objetivo: <b style="color:var(--sun)">${g.tg}</b>${host ? '' : ` · Dial: <b>${g.dial}</b> · <b style="color:var(--sun)">+${g.pts.local}</b> para ${esc(g.psy.name)}`}</p>
+        ${host ? `<div class="list">${gl.sort((a, b) => Math.abs(a.v - g.tg) - Math.abs(b.v - g.tg)).map(x => `<div class="li"><span class="dot" style="background:${x.c}"></span>${esc(x.n)} <span class="muted">${x.v}</span><b>+${waveScore(x.v, g.tg)}</b></div>`).join('')}<div class="li">${esc(g.psy.name)} <span class="muted">psíquico, promedio</span><b>+${g.pts[g.psy.id] || 0}</b></div></div>` : ''}
+        <div class="row center"><button class="btn big" data-a="g" data-f="next">Siguiente ronda</button></div></div>`;
+    }
+    if (host) return `<div class="stagebox">
+      <p style="text-align:center"><span class="eyebrow">Psíquico</span><br><b style="font-size:1.4rem">${esc(g.psy.name)}</b> ve el objetivo en su celular y da una pista en voz alta.</p>
+      ${spec}${dialSVG({})}
+      ${g.ph === 'clue' ? `<div class="row center"><button class="btn big" data-a="g" data-f="open">Ya dio la pista: ¡a adivinar!</button></div>`
+        : `<p class="muted" style="text-align:center">Todos mueven el dial en su celular. ${Object.keys(g.guesses).length} de ${Math.max(0, hostPlayers().length - 1)} enviaron.</p><div class="row center"><button class="btn" data-a="g" data-f="reveal">Revelar</button></div>`}</div>`;
+    AFTER.push(dialDragInit);
+    return `<div class="stagebox">
+      <p style="text-align:center"><span class="eyebrow">Psíquico</span><br><b style="font-size:1.4rem">${esc(g.psy.name)}</b></p>
+      ${spec}${dialSVG({ guess: g.dial, id: 'dd' })}
+      <p class="muted" style="text-align:center">${g.ph === 'clue' ? 'El psíquico mira el objetivo a solas y da una pista. Luego el grupo arrastra la aguja.' : 'Arrastren la aguja donde crean que está el objetivo.'}</p>
+      <div class="row center"><button class="btn alt" data-a="wavePeek">Ver objetivo (solo el psíquico)</button><button class="btn big" data-a="g" data-f="reveal">Revelar</button></div>
+      ${g.peek ? `<div class="cover"><span class="eyebrow">Solo ${esc(g.psy.name)}</span>${spec}${dialSVG({ target: g.tg })}<button class="btn big" data-a="wavePeek">Ocultar</button></div>` : ''}</div>`;
+  },
+};
+function dialDragInit() {
+  const svg = document.getElementById('dd'); if (!svg) return;
+  const set = e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    let t = Math.atan2(100 - p.y, p.x - 100); if (t < 0) t = p.x < 100 ? Math.PI : 0;
+    S.g.dial = Math.round(Math.min(100, Math.max(0, 100 * (1 - t / Math.PI))));
+    const [x, y] = dialPt(S.g.dial, 86); const ln = svg.querySelector('line'); if (ln) { ln.setAttribute('x2', x.toFixed(1)); ln.setAttribute('y2', y.toFixed(1)); }
+  };
+  let down = false;
+  svg.addEventListener('pointerdown', e => { down = true; svg.setPointerCapture(e.pointerId); set(e); });
+  svg.addEventListener('pointermove', e => { if (down) set(e); });
+  svg.addEventListener('pointerup', () => { down = false; });
+}
+
+// ---------- DIBUJA Y ADIVINA ----------
+function drawStrokes(ctx, strokes, W) {
+  ctx.fillStyle = '#fffaf0'; ctx.fillRect(0, 0, W, W);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const s of strokes) {
+    const p = s.p; if (!p || p.length < 2) continue;
+    ctx.strokeStyle = s.c === 9 ? '#fffaf0' : (PEN[s.c] || PEN[0]); ctx.lineWidth = (s.w || 1) * W / 120;
+    ctx.beginPath(); ctx.moveTo(p[0] * W / 1000, p[1] * W / 1000);
+    if (p.length === 2) ctx.lineTo(p[0] * W / 1000 + .1, p[1] * W / 1000);
+    for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * W / 1000, p[i + 1] * W / 1000);
+    ctx.stroke();
+  }
+}
+function canvasDrawing(cv, onStroke) {
+  const pos = e => { const r = cv.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * 1000), Math.round((e.clientY - r.top) / r.height * 1000)]; };
+  let down = false;
+  cv.addEventListener('pointerdown', e => { down = true; cv.setPointerCapture(e.pointerId); onStroke('start', pos(e)); });
+  cv.addEventListener('pointermove', e => { if (down) onStroke('move', pos(e)); });
+  const up = () => { if (down) { down = false; onStroke('end'); } };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+}
+function drawIngest(dr) {
+  const g = S.g; if (!g.strokes) return;
+  if (dr.clr !== g.clr) { g.strokes.clear(); g.clr = dr.clr; }
+  if (Array.isArray(dr.s)) for (const s of dr.s) if (s && typeof s.i === 'number' && Array.isArray(s.p)) g.strokes.set(s.i, { c: +s.c || 0, w: +s.w || 1, p: s.p.slice(0, 400).map(Number) });
+  hostCanvasRedraw();
+}
+function hostCanvasRedraw() { const cv = document.getElementById('hc'); if (!cv) return; const arr = S.g.local ? S.g.lstrokes : [...S.g.strokes.entries()].sort((a, b) => a[0] - b[0]).map(x => x[1]); drawStrokes(cv.getContext('2d'), arr, cv.width); }
+function phoneCanvasInit() {
+  const cv = document.getElementById('pc'); if (!cv) return;
+  const redraw = () => drawStrokes(cv.getContext('2d'), P.strokes.concat(P.cur ? [P.cur] : []), cv.width);
+  redraw();
+  const send = () => { if (!NR || !P.st) return; const s = P.strokes.slice(-3).concat(P.cur ? [P.cur] : []); NR.presence({ dr: { k: P.st.k, clr: P.clr, s } }).catch(() => {}); };
+  canvasDrawing(cv, (t, pt) => {
+    if (t === 'start') { P.cur = { i: ++P.sid, c: P.pen, w: 1, p: pt.slice() }; }
+    else if (t === 'move' && P.cur) { P.cur.p.push(pt[0], pt[1]); if (P.cur.p.length >= 100) { const last = P.cur.p.slice(-2); P.strokes.push(P.cur); P.cur = { i: ++P.sid, c: P.cur.c, w: 1, p: last }; } }
+    else if (t === 'end' && P.cur) { P.strokes.push(P.cur); P.cur = null; }
+    redraw(); send();
+  });
+}
+GAMES.draw = {
+  start() { newGame('draw', { words: shuffle(DRAW.concat(S.adult ? DRAW_X : [])), i: 0, di: 0, local: S.mode !== 'host' }); this.round(); },
+  round() {
+    const g = S.g, r = roster(); nextKey();
+    g.word = g.words[g.i % g.words.length]; g.drawer = r[g.di % r.length];
+    g.strokes = new Map(); g.lstrokes = []; g.clr = 0; g.solved = []; g.feed = []; g.right = {}; g.peek = false;
+    if (g.local) { g.ph = 'ready'; stopTimer(); } else { g.ph = 'draw'; startTimer(S.cfg.drawT, () => this.end()); }
+    this.pub(); render();
+  },
+  pub() { const g = S.g; pub({ t: 'draw', k: g.key, ph: g.ph === 'res' ? 'res' : 'draw', dr: g.drawer.id, w: g.word, dur: g.ph === 'draw' ? tLeft() : 0, solved: g.solved.map(s => s.name) }); },
+  go() { S.g.ph = 'draw'; startTimer(S.cfg.drawT, () => this.end()); render(); },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'draw' || p.id === g.drawer.id || g.solved.some(s => s.id === p.id)) return;
+    const txt = String(a.v || '').slice(0, 40);
+    if (matches(txt, [g.word])) {
+      const pts = [300, 200, 150][g.solved.length] || 100; g.solved.push({ id: p.id, name: p.name, pts });
+      addPts(p.name, pts); addPts(g.drawer.name, 100); g.feed.unshift({ n: p.name, ok: true, pts });
+      if (g.solved.length >= hostPlayers().length - 1) { this.end(); return; }
+      this.pub();
+    } else g.feed.unshift({ n: p.name, t: txt });
+    g.feed = g.feed.slice(0, 30); render();
+  },
+  end() {
+    const g = S.g; if (g.ph === 'res') return; stopTimer();
+    if (g.local) Object.keys(g.right).forEach(id => { const p = S.players.find(x => x.id === id); if (p) { addPts(p.name, 200); addPts(g.drawer.name, 100); } });
+    g.ph = 'res'; this.pub(); render();
+  },
+  next() { S.g.i++; S.g.di++; this.round(); },
+  view() {
+    const g = S.g;
+    AFTER.push(() => { hostCanvasRedraw(); if (g.local && g.ph === 'draw') { const cv = document.getElementById('hc'); canvasDrawing(cv, (t, pt) => { if (t === 'start') g.cur = { c: g.pen || 0, w: 1, p: pt.slice() }, g.lstrokes.push(g.cur); else if (t === 'move' && g.cur) g.cur.p.push(pt[0], pt[1]); else g.cur = null; hostCanvasRedraw(); }); } });
+    const canvas = `<div class="canvas-box"><canvas id="hc" width="700" height="700"></canvas></div>`;
+    if (g.ph === 'ready') return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">Dibuja</span><div class="big-word">${esc(g.drawer.name)}</div><p class="muted">Que solo ${esc(g.drawer.name)} mire la palabra.</p><div class="row center"><button class="btn alt" data-a="drawPeek">Ver palabra</button><button class="btn big" data-a="g" data-f="go">Empezar a dibujar</button></div>
+      ${g.peek ? `<div class="cover"><span class="eyebrow">Solo ${esc(g.drawer.name)}</span><div class="big-word">${esc(g.word)}</div><button class="btn big" data-a="drawPeek">Ocultar</button></div>` : ''}</div>`;
+    if (g.ph === 'res') return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">La palabra era</span><div class="big-word">${esc(g.word)}</div>${canvas}
+      ${g.local ? '' : `<div class="list" style="width:100%;max-width:480px">${g.solved.map(s => `<div class="li">${esc(s.name)}<b>+${s.pts}</b></div>`).join('') || '<p class="muted">Nadie adivinó.</p>'}</div>`}
+      <button class="btn big" data-a="g" data-f="next">Siguiente dibujante</button></div>`;
+    if (g.local) return `<div class="stagebox"><div class="spread"><span>Dibuja <b>${esc(g.drawer.name)}</b></span>${timerEl()}</div>${canvas}
+      <div class="pal">${PEN.map((c, i) => `<button style="background:${c}" class="${(g.pen || 0) === i ? 'on' : ''}" data-a="lPen" data-v="${i}" aria-label="Color ${i + 1}"></button>`).join('')}<button class="btn alt" data-a="lClear">Borrar</button></div>
+      <div class="stack"><span class="eyebrow">¿Quién adivinó? (+200, y +100 al dibujante)</span>${pickChips(g.right, 'drawRight')}</div>
+      <div class="row"><button class="btn big" data-a="g" data-f="end">Terminar ronda</button></div></div>`;
+    return `<div class="stagebox"><div class="spread"><span><b>${esc(g.drawer.name)}</b> dibuja en su celular</span>${timerEl()}</div>
+      <div class="rosco-wrap">${canvas}<div class="stack"><span class="eyebrow">Intentos</span><div class="list feed">${g.feed.map(f => f.ok ? `<div class="li" style="background:color-mix(in srgb,var(--ok) 30%,var(--stage-3))">${esc(f.n)} ¡adivinó!<b>+${f.pts}</b></div>` : `<div class="li">${esc(f.n)}: <span class="muted">${esc(f.t)}</span></div>`).join('') || '<p class="muted">Escriban sus respuestas en el celular.</p>'}</div>
+      <button class="btn alt" data-a="g" data-f="end">Terminar ronda</button></div></div></div>`;
+  },
+};
+
+// ---------- ADIVINA LA CANCIÓN ----------
+const songPts = (y, t) => { const d = Math.abs(y - t); return d === 0 ? 300 : d <= 1 ? 200 : d <= 3 ? 100 : d <= 5 ? 50 : 0; };
+GAMES.song = {
+  start() { newGame('song', { ph: 'setup', m: 'buzz', free: false }); pub({ t: 'wait', msg: 'Preparando Adivina la canción' }); render(); },
+  begin() { const g = S.g; if (g.m === 'year') g.free = false; g.list = shuffle(SONGS); g.i = 0; this.round(); },
+  round() {
+    const g = S.g; nextKey(); g.ph = 'play'; g.q = []; g.judged = 0; g.years = {}; g.right = {}; g.peek = false; g.pts = {};
+    g.song = g.list[g.i % g.list.length]; this.pub(); render();
+  },
+  ans() { const s = S.g.song; return S.g.free ? '' : `${s[0]} — ${s[1]} (${s[2]})`; },
+  pub() { const g = S.g; pub({ t: 'song', k: g.key, ph: g.ph, m: g.m, n: g.i + 1, q: g.q.map(x => x.id), ans: g.ph === 'res' ? this.ans() : undefined, pts: g.ph === 'res' ? g.pts : undefined }); },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'play') return;
+    if (g.m === 'buzz' && a.v === 'buzz' && !g.q.some(x => x.id === p.id)) { g.q.push({ id: p.id, name: p.name, color: p.color }); this.pub(); render(); }
+    if (g.m === 'year') { const y = Math.round(+a.v); if (y >= 1900 && y <= 2100) { g.years[p.id] = { y, name: p.name, color: p.color }; render(); } }
+  },
+  judge(ok) {
+    const g = S.g, cur = g.q[g.judged]; if (!cur) return;
+    if (ok) { addPts(cur.name, 200); g.pts[cur.id] = 200; this.reveal(); } else { g.judged++; render(); }
+  },
+  reveal() {
+    const g = S.g; if (g.ph === 'res') return; g.ph = 'res';
+    if (g.m === 'year' && S.mode === 'host') for (const [id, x] of Object.entries(g.years)) { const s = songPts(x.y, g.song[2]); g.pts[id] = s; if (s) addPts(x.name, s); }
+    if (S.mode !== 'host') Object.keys(g.right).forEach(id => { const p = S.players.find(x => x.id === id); if (p) addPts(p.name, g.m === 'year' ? 100 : 200); });
+    this.pub(); render();
+  },
+  next() { S.g.i++; this.round(); },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    if (g.ph === 'setup') return `<div class="stagebox">
+      <p class="muted">Tú haces de DJ: pones la canción en Spotify (con la pantalla del celular tapada) y este juego lleva el buzzer, los años y el puntaje.</p>
+      <div class="stack"><span class="eyebrow">Modo</span><div class="chips"><button class="chip ${g.m === 'buzz' ? 'sel' : ''}" data-a="songM" data-v="buzz">Buzzer: título y artista</button><button class="chip ${g.m === 'year' ? 'sel' : ''}" data-a="songM" data-v="year">Línea del tiempo: adivina el año</button></div></div>
+      ${g.m === 'buzz' ? `<div class="stack"><span class="eyebrow">Canciones</span><div class="chips"><button class="chip ${!g.free ? 'sel' : ''}" data-a="songF" data-v="0">Banco del juego (${SONGS.length} temas, con respuesta)</button><button class="chip ${g.free ? 'sel' : ''}" data-a="songF" data-v="1">Mi propia playlist</button></div></div>` : ''}
+      <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    const s = g.song;
+    const dj = g.free ? `<p class="muted">Pon la siguiente canción de tu playlist.</p>`
+      : `<div class="row"><a class="btn alt" href="https://open.spotify.com/search/${encodeURIComponent(s[0] + ' ' + s[1])}" target="_blank" rel="noopener">Abrir en Spotify ↗</a><button class="btn alt" data-a="songPeek">${g.peek ? 'Ocultar' : 'Ver respuesta (solo DJ)'}</button></div>${g.peek ? `<p><b>${esc(s[0])}</b> — ${esc(s[1])} · ${s[2]}</p>` : ''}`;
+    if (g.ph === 'res') return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">Canción ${g.i + 1}</span>
+      ${g.free ? '<h2>¡Revelada!</h2>' : `<div class="big-word">${esc(s[0])}</div><p style="font-size:1.2rem">${esc(s[1])} · <b style="color:var(--sun)">${s[2]}</b></p>`}
+      ${host && g.m === 'year' ? `<div class="list" style="width:100%;max-width:480px">${Object.entries(g.years).sort((a, b) => Math.abs(a[1].y - s[2]) - Math.abs(b[1].y - s[2])).map(([id, x]) => `<div class="li"><span class="dot" style="background:${x.color}"></span>${esc(x.name)} <span class="muted">${x.y}</span><b>+${g.pts[id] || 0}</b></div>`).join('')}</div>` : ''}
+      <button class="btn big" data-a="g" data-f="next">Siguiente canción</button></div>`;
+    let mid = '';
+    if (host && g.m === 'buzz') {
+      const cur = g.q[g.judged];
+      mid = `<div class="stack"><span class="eyebrow">Orden del buzzer</span><div class="list">${g.q.map((x, i) => `<div class="li" style="${i < g.judged ? 'opacity:.4' : ''}"><span class="rank">${i + 1}</span><span class="dot" style="background:${x.color}"></span>${esc(x.name)}${i < g.judged ? '<b>✗</b>' : ''}</div>`).join('') || '<p class="muted">Nadie ha tocado el buzzer todavía.</p>'}</div>
+        ${cur ? `<div class="row"><span>¿Acertó <b>${esc(cur.name)}</b>?</span><button class="btn ok" data-a="songJudge" data-v="1">Sí, +200</button><button class="btn bad" data-a="songJudge" data-v="0">No</button></div>` : ''}</div>`;
+    } else if (host && g.m === 'year') {
+      mid = `<p class="muted">Cada uno elige el año en su celular. ${Object.keys(g.years).length} de ${hostPlayers().length} enviaron.</p>`;
+    } else {
+      mid = `<div class="stack"><span class="eyebrow">${g.m === 'year' ? '¿Quién estuvo más cerca del año? (+100)' : '¿Quién la adivinó? (+200)'}</span>${pickChips(g.right, 'songRight')}<span class="small muted">Puedes marcar después de revelar.</span></div>`;
+    }
+    return `<div class="stagebox"><div class="spread"><h2>Canción ${g.i + 1}</h2><span class="pill">${g.m === 'year' ? 'Adivina el año' : 'Buzzer'}</span></div>
+      <div class="panel stack"><span class="eyebrow">Para el DJ</span>${dj}</div>
+      ${mid}<div class="row"><button class="btn big" data-a="g" data-f="reveal">Revelar</button></div></div>`;
+  },
+};
+
+// ---------- EL ROSCO ----------
+GAMES.rosco = {
+  start() { newGame('rosco', { ph: 'setup' }); pub({ t: 'screen', msg: 'El Rosco se juega en la pantalla principal.' }); render(); },
+  begin() {
+    const g = S.g; const idx = shuffle([0, 1, 2]).slice(0, 2);
+    g.teams = [0, 1].map(t => ({ name: S.teams[t], ro: ROSCOS[idx[t]], st: Array(25).fill(0), pos: 0, time: S.cfg.roscoT }));
+    g.cur = 0; g.run = false; g.peek = false; g.ph = 'play'; g.last = Date.now(); render();
+  },
+  tick() {
+    const g = S.g; if (g.ph !== 'play') return; const now = Date.now(); const dt = (now - g.last) / 1000; g.last = now;
+    if (!g.run) return;
+    const tm = g.teams[g.cur]; tm.time = Math.max(0, tm.time - dt);
+    const el = document.getElementById('rt' + g.cur); if (el) el.textContent = Math.ceil(tm.time);
+    if (tm.time <= 0) { g.run = false; this.switchTeam(); }
+  },
+  pending(t) { return t.st.some(x => x === 0); },
+  advance(t) { for (let k = 1; k <= 25; k++) { const j = (t.pos + k) % 25; if (t.st[j] === 0) { t.pos = j; return; } } },
+  act(kind) {
+    const g = S.g, t = g.teams[g.cur]; if (g.ph !== 'play') return;
+    if (!g.run && kind !== 'start') return;
+    if (kind === 'start') { g.run = true; g.last = Date.now(); render(); return; }
+    g.peek = false;
+    if (kind === 'ok') { t.st[t.pos] = 1; if (!this.pending(t)) { g.run = false; this.finish(); return; } this.advance(t); render(); return; }
+    if (kind === 'bad') t.st[t.pos] = 2;
+    if (this.pending(t)) this.advance(t);
+    g.run = false; this.switchTeam();
+  },
+  switchTeam() {
+    const g = S.g; const o = 1 - g.cur;
+    const can = t => t.time > 0 && this.pending(t);
+    if (can(g.teams[o])) g.cur = o; else if (!can(g.teams[g.cur])) { this.finish(); return; }
+    render();
+  },
+  finish() { const g = S.g; g.ph = 'end'; g.run = false; render(); },
+  view() {
+    const g = S.g;
+    if (g.ph === 'setup') return teamSetup('Cada equipo recibe un rosco distinto. Lee la pista; el equipo responde. Error o "pasapalabra" le da el turno al otro equipo.', 'Tiempo por equipo (seg)', 'roscoT');
+    const count = t => ({ ok: t.st.filter(x => x === 1).length, bad: t.st.filter(x => x === 2).length });
+    if (g.ph === 'end') {
+      const [a, b] = g.teams.map(count);
+      const w = a.ok !== b.ok ? (a.ok > b.ok ? 0 : 1) : a.bad !== b.bad ? (a.bad < b.bad ? 0 : 1) : -1;
+      return `<div class="stagebox" style="align-items:center;text-align:center"><span class="eyebrow">Fin del rosco</span><div class="big-word">${w < 0 ? 'Empate' : esc(g.teams[w].name)}</div>
+        <div class="teams" style="width:100%">${g.teams.map((t, i) => { const c = count(t); return `<div class="team"><b>${esc(t.name)}</b><span class="pts">${c.ok}</span><span class="muted">${c.bad} errores · ${t.ro.n}</span></div>`; }).join('')}</div>
+        <div class="row center"><button class="btn big" data-a="g" data-f="begin">Otro rosco</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+    }
+    const t = g.teams[g.cur]; const L = t.ro.l[t.pos];
+    const R = 175, cx = 200, cy = 200;
+    const circles = t.ro.l.map((l, i) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 25; const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
+      const st = t.st[i]; const fill = i === t.pos ? 'var(--sun)' : st === 1 ? 'var(--teal)' : st === 2 ? 'var(--coral)' : 'var(--blue)';
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="19" fill="${fill}"/><text x="${x.toFixed(1)}" y="${(y + 5.5).toFixed(1)}" text-anchor="middle" fill="#1b1033">${l[0]}</text>`;
+    }).join('');
+    return `<div class="stagebox">
+      <div class="teams">${g.teams.map((tm, i) => { const c = count(tm); return `<div class="team ${i === g.cur ? 'act' : ''}"><b>${esc(tm.name)}</b><span class="pts"><span id="rt${i}">${Math.ceil(tm.time)}</span><span class="small muted"> seg</span></span><span class="muted">${c.ok} aciertos · ${c.bad} errores</span></div>`; }).join('')}</div>
+      <div class="rosco-wrap">
+        <svg class="rosco" viewBox="0 0 400 400" role="img" aria-label="Rosco de ${esc(t.name)}">${circles}<text x="200" y="196" text-anchor="middle" fill="var(--sun)" style="font-size:64px">${L[0]}</text><text x="200" y="232" text-anchor="middle" fill="var(--muted)" style="font-family:var(--f-body);font-size:16px;font-weight:700">${L[1] === 'Contiene' ? 'CONTIENE LA' : 'EMPIEZA CON'} ${L[0]}</text></svg>
+        <div class="stack">
+          <span class="eyebrow">${L[1]} con ${L[0]}</span>
+          <p class="q">${esc(L[2])}</p>
+          <button class="btn alt" data-a="roscoPeek">${g.peek ? esc(L[3]) : 'Ver respuesta (solo presentador)'}</button>
+          ${g.run ? `<div class="row"><button class="btn ok big" data-a="rosco" data-v="ok">Acierto</button><button class="btn bad big" data-a="rosco" data-v="bad">Error</button><button class="btn big" data-a="rosco" data-v="pass">Pasapalabra</button></div>`
+            : `<button class="btn big" data-a="rosco" data-v="start">Turno de ${esc(t.name)}: iniciar reloj</button>`}
+        </div>
+      </div></div>`;
+  },
+};
+function teamSetup(desc, cfgLabel, cfgKey) {
+  return `<div class="stagebox"><p class="muted">${desc}</p>
+    <div class="row"><input id="t0" value="${esc(S.teams[0])}" maxlength="20" data-in="team0" aria-label="Equipo 1" style="flex:1"><input id="t1" value="${esc(S.teams[1])}" maxlength="20" data-in="team1" aria-label="Equipo 2" style="flex:1"></div>
+    ${cfgKey ? `<label class="row"><span class="muted">${cfgLabel}</span><input type="number" id="cf" min="30" max="600" step="10" value="${S.cfg[cfgKey]}" data-in="cfg" data-k="${cfgKey}" style="width:100px"></label>` : ''}
+    <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+}
+
+// ---------- 100 CHILENOS DIJERON ----------
+GAMES.feud = {
+  start() { newGame('feud', { ph: 'setup' }); pub({ t: 'screen', msg: '100 chilenos dijeron se juega en la pantalla principal.' }); render(); },
+  begin() { const g = S.g; g.list = shuffle(FEUD.filter(f => S.adult || !f.x)); g.i = 0; g.tot = [0, 0]; this.round(); },
+  round() { const g = S.g; g.sv = g.list[g.i % g.list.length]; g.rev = g.sv.a.map(() => false); g.flip = -1; g.strikes = 0; g.bank = 0; g.team = -1; g.ph = 'pick'; g.mult = g.i >= 4 ? 3 : g.i >= 3 ? 2 : 1; g.msg = ''; render(); },
+  play(t) { S.g.team = t; S.g.ph = 'play'; render(); },
+  find(txt) { const g = S.g; return g.sv.a.findIndex((a, i) => !g.rev[i] && matches(txt, [a[0], ...a[2]])); },
+  open(i) { const g = S.g; if (g.rev[i]) return false; g.rev[i] = true; g.flip = i; if (g.ph === 'play' || g.ph === 'steal') g.bank += g.sv.a[i][1] * g.mult; return true; },
+  guess(txt) {
+    const g = S.g; if (!txt.trim()) return;
+    const i = this.find(txt);
+    if (g.ph === 'play') {
+      if (i >= 0) { this.open(i); g.msg = ''; if (g.rev.every(Boolean)) return this.win(g.team); render(); }
+      else this.strike(txt);
+    } else if (g.ph === 'steal') {
+      if (i >= 0) { this.open(i); this.win(1 - g.team); } else { g.msg = `“${txt}” no está en la encuesta.`; showX(); this.win(g.team); }
+    }
+  },
+  strike(txt) { const g = S.g; g.strikes++; g.msg = txt ? `“${txt}” no está en la encuesta.` : ''; showX(); if (g.strikes >= 3) { g.ph = 'steal'; } render(); },
+  tile(i) { const g = S.g; if (g.ph === 'pick' || g.rev[i]) return; this.open(i); if (g.ph === 'steal') return this.win(1 - g.team); if (g.ph === 'play' && g.rev.every(Boolean)) return this.win(g.team); render(); },
+  win(t) { const g = S.g; g.tot[t] += g.bank; g.winner = t; g.ph = 'done'; render(); },
+  revealAll() { const g = S.g; g.rev = g.rev.map(() => true); g.flip = -1; render(); },
+  next() { S.g.i++; this.round(); },
+  view() {
+    const g = S.g;
+    if (g.ph === 'setup') return teamSetup('Dos equipos. Un equipo responde hasta completar el tablero o juntar 3 errores; ahí el otro equipo puede robar los puntos con una sola respuesta. Escribe lo que dicen y el juego busca la coincidencia. Encuestas ficticias.', '', '');
+    const board = `<div class="board">${g.sv.a.map((a, i) => g.rev[i]
+      ? `<div class="tile ${g.flip === i ? 'flip' : ''}"><span class="n">${i + 1}</span>${esc(a[0])}<span class="p">${a[1]}</span></div>`
+      : `<button class="tile hid" data-a="feudTile" data-i="${i}" title="Revelar manualmente"><span class="n">${i + 1}</span><span class="p">?</span></button>`).join('')}</div>`;
+    const teams = `<div class="teams">${[0, 1].map(t => `<div class="team ${g.team === t ? 'act' : ''}"><b>${esc(S.teams[t])}</b><span class="pts">${g.tot[t]}</span></div>`).join('')}</div>`;
+    let ctl = '';
+    if (g.ph === 'pick') ctl = `<p class="muted">Cara a cara: un integrante de cada equipo responde. El que diga la respuesta más alta elige jugar.</p><div class="row">${[0, 1].map(t => `<button class="btn big" data-a="feudPlay" data-v="${t}">Juega ${esc(S.teams[t])}</button>`).join('')}</div>`;
+    else if (g.ph === 'play' || g.ph === 'steal') ctl = `
+      <div class="spread"><span>${g.ph === 'play' ? `Responde <b>${esc(S.teams[g.team])}</b>` : `<b style="color:var(--coral)">¡${esc(S.teams[1 - g.team])} puede robar!</b> Una sola respuesta.`}</span><div class="strikes">${[0, 1, 2].map(i => `<span class="${i < g.strikes ? 'on' : ''}">✕</span>`).join('')}</div></div>
+      <div class="row"><input id="fa" placeholder="Escribe lo que respondieron" data-enter="feudGuess" style="flex:1" autocomplete="off"><button class="btn" data-a="feudGuess">Buscar</button>${g.ph === 'play' ? `<button class="btn bad" data-a="feudStrike">✕ Error</button>` : ''}</div>
+      ${g.msg ? `<p class="note">${esc(g.msg)}</p>` : ''}`;
+    else ctl = `<p class="q" style="font-size:1.3rem;text-align:center">${esc(S.teams[g.winner])} se lleva <span style="color:var(--sun)">${g.bank}</span> puntos</p><div class="row center"><button class="btn alt" data-a="g" data-f="revealAll">Mostrar todas</button><button class="btn big" data-a="g" data-f="next">Siguiente encuesta</button></div>`;
+    return `<div class="stagebox">${teams}
+      <div class="spread"><span class="eyebrow">Encuesta ${g.i + 1}${g.mult > 1 ? ` · puntaje x${g.mult}` : ''}</span><span class="pill">En juego: <b>${g.bank}</b></span></div>
+      <p class="q" style="text-align:center">${esc(g.sv.q)}</p>${board}${ctl}</div>`;
+  },
+};
+function showX() { const d = document.createElement('div'); d.className = 'bigx'; d.textContent = '✕'; document.body.appendChild(d); setTimeout(() => d.remove(), 950); }
+
+// ===================== acciones =====================
+const ACT = {
+  home() { S.err = ''; S.view = 'home'; S.mode = null; render(); },
+  toggleAdult() { S.adult = !S.adult; save(); render(); },
+  goLocal() { if (S.mode === 'host' && NR) { NR.leave().catch(() => {}); NR = null; } S.mode = 'local'; S.view = 'localSetup'; render(); setTimeout(() => document.getElementById('pn')?.focus(), 0); },
+  addPlayer() { const el = document.getElementById('pn'); const n = (el?.value || '').trim().slice(0, 16); if (!n || S.players.some(p => p.name === n)) return; S.players.push({ id: 'L' + Date.now() + Math.random().toString(36).slice(2, 5), name: n, color: COLORS[S.players.length % COLORS.length] }); save(); el.value = ''; render(); document.getElementById('pn')?.focus(); },
+  rmPlayer(d) { S.players.splice(+d.i, 1); save(); render(); },
+  async goHost() {
+    if (!ROOM) { S.err = 'La sala con celulares no está disponible en esta vista. Usa "Jugar aquí".'; render(); return; }
+    S.code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
+    try { await joinRoom(S.code); } catch (e) { S.err = 'No se pudo crear la sala (' + (e && e.code || 'error') + '). Usa "Jugar aquí".'; render(); return; }
+    S.mode = 'host'; S.view = 'hostLobby';
+    NR.onPeers(onHostPeers, e => { S.err = 'Se perdió la conexión de la sala.'; });
+    pub({ t: 'wait', msg: 'En el lobby' }); render();
+  },
+  lobby() { S.view = 'hostLobby'; pub({ t: 'wait', msg: 'En el lobby' }); render(); },
+  goJoin() { if (!ROOM) { S.err = 'La sala con celulares no está disponible en esta vista.'; render(); return; } S.err = ''; S.view = 'join'; render(); },
+  async doJoin() {
+    const name = (document.getElementById('jn')?.value || '').trim().slice(0, 16);
+    const code = (document.getElementById('jc')?.value || '').trim().toUpperCase();
+    if (!name) { S.err = 'Escribe tu nombre.'; render(); return; }
+    if (!/^[A-Z]{4}$/.test(code)) { S.err = 'El código tiene 4 letras.'; render(); document.getElementById('jc').value = code; return; }
+    S.pname = name; S.code = code; save();
+    try { await joinRoom(code); } catch (e) { S.err = 'No se pudo entrar (' + (e && e.code || 'error') + ').'; render(); return; }
+    S.pcolor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    S.mode = 'phone'; S.view = 'phone'; S.err = '';
+    NR.onPeers(onPhonePeers);
+    NR.presence({ role: 'player', name, color: S.pcolor }).catch(() => {});
+    render();
+  },
+  async leave() { if (NR) { try { await NR.leave(); } catch (e) {} NR = null; } S.mode = null; S.g = null; S.view = 'home'; stopTimer(); render(); },
+  menu() {
+    if (S.mode === 'local' && S.players.length < 2) { S.view = 'localSetup'; render(); return; }
+    stopTimer(); S.g = null; S.view = 'menu'; pub({ t: 'wait', msg: 'Eligiendo el siguiente juego' }); render();
+  },
+  startGame(d) { stopTimer(); GAMES[d.g].start(); },
+  scores() { S.prevView = S.view; S.view = 'scores'; render(); },
+  back() { S.view = S.prevView && S.prevView !== 'scores' ? S.prevView : 'menu'; render(); },
+  adj(d) { addPts(d.n, +d.v); if (lastPub) pub(lastPub); render(); },
+  resetScores() { if (S.confirmReset) { Object.keys(S.scores).forEach(k => S.scores[k] = 0); save(); S.confirmReset = false; if (lastPub) pub(lastPub); render(); } else { S.confirmReset = true; const b = document.querySelector('[data-a=resetScores]'); if (b) b.textContent = 'Toca otra vez para confirmar'; setTimeout(() => S.confirmReset = false, 3000); } },
+  g(d) { const G = GAMES[S.g.id]; G[d.f] && G[d.f](); },
+  trivRight(d) { const r = S.g.right; r[d.id] = !r[d.id]; render(); },
+  drawRight(d) { const r = S.g.right; r[d.id] = !r[d.id]; render(); },
+  songRight(d) { const r = S.g.right; r[d.id] = !r[d.id]; render(); },
+  impCat(d) { S.g.cat = d.v; render(); }, impN(d) { S.g.nImp = +d.v; render(); }, impHint() { S.g.hint = !S.g.hint; render(); },
+  impShow() { S.g.show = true; render(); },
+  impNext() { const g = S.g; g.show = false; g.pi++; if (g.pi >= roster().length) g.ph = 'see'; render(); },
+  impAccuse(d) { GAMES.imp.accuse(d.id || null); },
+  wavePeek() { S.g.peek = !S.g.peek; render(); },
+  drawPeek() { S.g.peek = !S.g.peek; render(); },
+  lPen(d) { S.g.pen = +d.v; render(); }, lClear() { S.g.lstrokes = []; hostCanvasRedraw(); },
+  songM(d) { S.g.m = d.v; render(); }, songF(d) { S.g.free = d.v === '1'; render(); },
+  songPeek() { S.g.peek = !S.g.peek; render(); },
+  songJudge(d) { GAMES.song.judge(d.v === '1'); },
+  rosco(d) { GAMES.rosco.act(d.v); },
+  roscoPeek() { S.g.peek = !S.g.peek; render(); },
+  feudPlay(d) { GAMES.feud.play(+d.v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
+  feudGuess() { const el = document.getElementById('fa'); const v = el ? el.value : ''; if (el) el.value = ''; GAMES.feud.guess(v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
+  feudStrike() { GAMES.feud.strike(''); },
+  feudTile(d) { GAMES.feud.tile(+d.i); },
+  // teléfono
+  pAns(d) { answer(d.str ? d.v : +d.v); },
+  pPeek() { P.peek = !P.peek; render(); },
+  pWave() { answer(P.wv ?? 50); },
+  pYear() { answer(P.yr ?? 1995); },
+  pBuzz() { answer('buzz'); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} },
+  pGuess() { const el = document.getElementById('gs'); const v = (el?.value || '').trim(); if (!v || !NR || !P.st) return; el.value = ''; P.gn++; NR.presence({ a: { k: P.st.k, v, n: P.gn } }).catch(() => {}); },
+  pPen(d) { P.pen = +d.v; document.querySelectorAll('.pal button[data-v]').forEach(b => b.classList.toggle('on', +b.dataset.v === P.pen)); },
+  pClear() { P.strokes = []; P.cur = null; P.clr++; const cv = document.getElementById('pc'); if (cv) drawStrokes(cv.getContext('2d'), [], cv.width); if (NR && P.st) NR.presence({ dr: { k: P.st.k, clr: P.clr, s: [] } }).catch(() => {}); },
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const f = ACT[el.dataset.a]; if (f) { e.preventDefault(); f(el.dataset, el); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); ACT[e.target.dataset.enter](e.target.dataset); }
+  else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('toggle')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.in; if (!k) return;
+  if (k === 'wv') { P.wv = +e.target.value; const svg = e.target.parentElement.querySelector('.dial line'); if (svg) { const [x, y] = dialPt(P.wv, 86); svg.setAttribute('x2', x.toFixed(1)); svg.setAttribute('y2', y.toFixed(1)); } }
+  if (k === 'yr') { P.yr = +e.target.value; const o = document.getElementById('yrv'); if (o) o.textContent = P.yr; }
+  if (k === 'team0' || k === 'team1') { S.teams[+k.slice(-1)] = e.target.value.slice(0, 20) || 'Equipo'; save(); }
+  if (k === 'cfg') { const v = Math.max(30, Math.min(600, +e.target.value || 150)); S.cfg[e.target.dataset.k] = v; save(); }
+});
+try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+
+render();
+</script>
+
+</body>
+</html>
