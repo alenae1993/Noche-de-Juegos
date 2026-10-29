@@ -2,7 +2,7 @@
 
 Set de party games en español para jugar en la tele, el notebook o pasándose el celular.
 
-**Jugar:** https://alenae1993.github.io/noche-de-juegos/
+**Jugar:** https://alenae1993.github.io/Noche-de-Juegos/
 
 ## Juegos
 
