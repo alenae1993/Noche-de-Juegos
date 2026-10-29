@@ -6,6 +6,10 @@
 </head>
 <body>
 <title>Noche de Juegos</title>
+<!-- impeccable-disable pulsing-dot: luces de marquesina, estética de concurso de TV -->
+<!-- impeccable-disable dark-glow: brillo de las ampolletas, intencional -->
+<!-- impeccable-disable radial-halo: foco de escenario, intencional -->
+<!-- impeccable-disable hard-offset-shadow: botones presionables, intencional -->
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
@@ -14,7 +18,7 @@
 :root{
   --stage:#1b1033; --stage-2:#28184a; --stage-3:#352260;
   --ink:#fff6e8; --muted:#bfaedf; --line:rgba(255,246,232,.14);
-  --coral:#ff6a55; --sun:#ffc23d; --teal:#27c7b4; --blue:#5a83ff; --pink:#ff4fa3;
+  --coral:#ff6a55; --sun:#ffc23d; --teal:#27c7b4; --blue:#6a8fff; --pink:#ff4fa3;
   --ok:#3ddc84; --bad:#ff5a5a;
   --f-display:'Bungee', 'Impact', 'Arial Black', sans-serif;
   --f-body:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
@@ -37,7 +41,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance
 h1{font-size:clamp(2.2rem,7vw,4.2rem)}
 h2{font-size:clamp(1.5rem,4.5vw,2.3rem)}
 h3{font-size:1.15rem}
-p{margin:0}
+p{margin:0;text-wrap:pretty}
 .muted{color:var(--muted)}
 .small{font-size:.86rem}
 .eyebrow{font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sun);font-weight:800}
@@ -80,7 +84,8 @@ a{color:var(--sun)}
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .mode{text-align:left;background:var(--stage-2);border:2px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s, transform .15s}
 .mode:hover{border-color:var(--sun);transform:translateY(-2px)}
-.mode h3{color:var(--sun)}
+.mode h3,.mode h2{color:var(--sun)}
+.mode h2{font-size:1.15rem}
 .mode.off{opacity:.5}
 .toggle{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
 .sw{width:52px;height:30px;border-radius:999px;background:var(--stage-3);position:relative;transition:background .15s;flex:none}
@@ -1287,14 +1292,14 @@ VIEWS.home = () => {
   const noRoom = roomChecked && TRANSPORT === 'none';
   return `
   <div class="hero">
-    <div class="bulbs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>NOCHE DE <em>JUEGOS</em></h1>
     <p class="muted">Trivia, rosco, 100 chilenos dijeron, impostor, onda, dibujos, votaciones y canciones.</p>
   </div>
   <div class="modes">
-    <button class="mode" data-a="goLocal"><span class="eyebrow">Sin sala</span><h3>Jugar aquí</h3><p class="muted">Todo en esta pantalla. Ideal para la tele o para ir pasándose el celular.</p></button>
-    <button class="mode ${noRoom ? 'off' : ''}" data-a="goHost"><span class="eyebrow">Con sala · pantalla principal</span><h3>Crear sala</h3><p class="muted">Esta pantalla muestra el juego y cada uno responde desde su celular.</p></button>
-    <button class="mode ${noRoom ? 'off' : ''}" data-a="goJoin"><span class="eyebrow">Con sala · jugador</span><h3>Unirme con mi celular</h3><p class="muted">Ingresa el código que aparece en la pantalla principal.</p></button>
+    <button class="mode" data-a="goLocal"><span class="eyebrow">Sin sala</span><h2>Jugar aquí</h2><p class="muted">Todo en esta pantalla. Ideal para la tele o para ir pasándose el celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goHost"><span class="eyebrow">Con sala · pantalla principal</span><h2>Crear sala</h2><p class="muted">Esta pantalla muestra el juego y cada uno responde desde su celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goJoin"><span class="eyebrow">Con sala · jugador</span><h2>Unirme con mi celular</h2><p class="muted">Ingresa el código que aparece en la pantalla principal.</p></button>
   </div>
   ${noRoom ? `<p class="note">La sala con celulares no está disponible en esta vista. Funciona cuando cada jugador abre este mismo enlace con su cuenta de claude.ai (miembros de tu organización o invitados al artefacto). Mientras tanto, usa "Jugar aquí".</p>` : ''}
   <div class="panel spread">
@@ -1360,7 +1365,7 @@ VIEWS.menu = () => {
   return `
   ${topBar(`${S.mode === 'host' ? `<span class="pill">Sala <b>${esc(S.code)}</b> · ${r.length} jugadores</span>` : ''}<button class="btn alt" data-a="pack">Mi pack${typeof packCount === 'function' && packCount() ? ' (' + packCount() + ')' : ''}</button><button class="btn alt" data-a="scores">Marcador</button><button class="btn alt" data-a="${S.mode === 'host' ? 'lobby' : 'goLocal'}">Jugadores</button>`)}
   <div class="spread"><h2>Elige un juego</h2><div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><b>+18</b></div></div>
-  <div class="games">${GAME_LIST.map(g => `<button class="game ${g.c}" data-a="startGame" data-g="${g.id}"><span class="glyph">${g.glyph}</span><h3>${g.name}</h3><p>${g.d}</p><div class="tags">${g.tags.map(t => `<span>${t}</span>`).join('')}</div></button>`).join('')}</div>`;
+  <div class="games">${GAME_LIST.map(g => `<button class="game ${g.c}" data-a="startGame" data-g="${g.id}"><span class="glyph" aria-hidden="true" data-impeccable-ignore="low-contrast">${g.glyph}</span><h3>${g.name}</h3><p>${g.d}</p><div class="tags">${g.tags.map(t => `<span>${t}</span>`).join('')}</div></button>`).join('')}</div>`;
 };
 
 VIEWS.scores = () => {
