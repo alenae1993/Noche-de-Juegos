@@ -1338,14 +1338,13 @@ VIEWS.join = () => `
   </div>`;
 
 const GAME_LIST = [
-  { id: 'trivia', name: 'Trivia relámpago', d: 'Preguntas con 4 opciones. Más rápido, más puntos.', glyph: '?', c: 'c0', tags: ['Con sala', 'Sin sala'] },
+  { id: 'trivia', name: 'Trivia relámpago', d: 'Preguntas con 4 opciones, banderas y mapas. Más rápido, más puntos.', glyph: '?', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'rosco', name: 'El Rosco', d: 'De la A a la Z contra el reloj, dos equipos.', glyph: 'A·Z', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
   { id: 'feud', name: '100 chilenos dijeron', d: 'Adivinen las respuestas más populares de la encuesta.', glyph: '100', c: 'c2', tags: ['Con sala', 'Sin sala', '2 equipos'] },
   { id: 'imp', name: 'El Impostor', d: 'Todos saben la palabra menos uno. ¿Quién miente?', glyph: '¿?', c: 'c3', tags: ['Con sala', 'Sin sala'] },
   { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Con sala', 'Sin sala'] },
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Con sala', 'Sin sala'] },
-  { id: 'geo', name: 'Banderas y mapas', d: 'Adivina el país por su bandera, su silueta, el mapa o su capital.', glyph: '⚑', c: 'c2', tags: ['Con sala', 'Sin sala'] },
   { id: 'dix', name: 'Imaginario', d: 'Da una pista sobre una carta y confunde a los demás. Basado en Dixit, con tus propias cartas.', glyph: '✦', c: 'c3', tags: ['Solo con sala', '3 a 8', 'Tus cartas'] },
   { id: 'tabu', name: 'Tabú', d: 'Describe la palabra sin decir ninguna de las prohibidas.', glyph: '⊘', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
   { id: 'hang', name: 'Ahorcado', d: 'Adivinen la palabra letra por letra antes de que se complete el monito.', glyph: 'A_', c: 'c0', tags: ['Con sala', 'Sin sala'] },
@@ -1571,15 +1570,25 @@ const pickChips = (sel, act) => `<div class="chips">${roster().map(p => `<button
 
 // ---------- TRIVIA ----------
 GAMES.trivia = {
-  cats() { return [...new Set(TRIVIA.filter(q => S.adult || !q.x).map(q => q.c))]; },
-  start() { newGame('trivia', { ph: 'setup', cats: S.trivCats ? S.trivCats.filter(c => this.cats().includes(c)) : this.cats(), n: S.cfg.trivN }); pub({ t: 'wait', msg: 'Preparando la trivia' }); render(); },
+  cats() { return [...new Set(TRIVIA.filter(q => S.adult || !q.x).map(q => q.c))].concat(GEO_LABELS); },
+  start() { newGame('trivia', { ph: 'setup', cats: S.trivCats ? S.trivCats.filter(c => this.cats().includes(c)) : this.cats(), n: S.cfg.trivN, diff: S.geoDiff || 'easy', regs: S.geoRegs || Object.keys(GEO_REG) }); pub({ t: 'wait', msg: 'Preparando la trivia' }); render(); },
   begin() {
     const g = S.g; if (!g.cats.length) return; S.trivCats = g.cats.slice(); S.cfg.trivN = g.n; save();
+    S.geoDiff = g.diff; S.geoRegs = g.regs.slice();
     const pool = shuffle(TRIVIA.filter(q => (S.adult || !q.x) && g.cats.includes(q.c)));
     // reparte las preguntas entre las categorías elegidas para que no salgan todas de la misma
     const byCat = {}; pool.forEach(q => (byCat[q.c] = byCat[q.c] || []).push(q));
-    const qs = []; let k = 0; const keys = shuffle(Object.keys(byCat));
-    while (qs.length < g.n && keys.some(c => byCat[c].length)) { const c = keys[k++ % keys.length]; if (byCat[c].length) qs.push(byCat[c].shift()); }
+    const gpool = GEO.pool(g.diff, g.regs), used = new Set();
+    const geoKeys = gpool.length >= 4 ? Object.keys(GEO_MODES).filter(m => g.cats.includes(GEO_MODES[m])) : [];
+    geoKeys.forEach(m => { byCat[GEO_MODES[m]] = { geo: m }; });
+    const qs = []; let k = 0, guard = 0; const keys = shuffle(Object.keys(byCat));
+    const has = c => byCat[c].geo ? true : byCat[c].length > 0;
+    while (qs.length < g.n && keys.some(has) && guard++ < 1000) {
+      const c = keys[k++ % keys.length]; if (!has(c)) continue;
+      if (byCat[c].geo) { const q = GEO.make(byCat[c].geo, gpool, used); if (q) qs.push(q); else byCat[c] = []; }
+      else qs.push(byCat[c].shift());
+    }
+    if (!qs.length) { g.warn = 'No hay preguntas con esa selección. Revisa las categorías y las regiones.'; render(); return; }
     g.qs = qs; g.i = 0; this.ask();
   },
   ask() {
@@ -1608,18 +1617,24 @@ GAMES.trivia = {
     const g = S.g;
     if (g.ph === 'setup') { const all = this.cats(); return `<div class="stagebox">
       <div class="stack"><div class="spread"><span class="eyebrow">Categorías</span><button class="btn alt" data-a="trivAll">${g.cats.length === all.length ? 'Quitar todas' : 'Marcar todas'}</button></div>
-      <div class="chips">${all.map(c => `<button class="chip ${g.cats.includes(c) ? 'sel' : ''}" data-a="trivCat" data-v="${esc(c)}">${esc(c)} <span class="muted small">${TRIVIA.filter(q => q.c === c).length}</span></button>`).join('')}</div></div>
+      <div class="chips">${all.map(c => `<button class="chip ${g.cats.includes(c) ? 'sel' : ''}" data-a="trivCat" data-v="${esc(c)}">${esc(c)} <span class="muted small">${GEO_LABELS.includes(c) ? 'países' : TRIVIA.filter(q => q.c === c).length}</span></button>`).join('')}</div>
+      <span class="small muted">Banderas, Siluetas, Mapa y Capitales muestran la imagen en la tele.</span></div>
+      ${g.cats.some(c => GEO_LABELS.includes(c)) ? `<div class="panel stack"><span class="eyebrow">Banderas y mapas</span>
+        <div class="chips"><button class="chip ${g.diff === 'easy' ? 'sel' : ''}" data-a="geoDiff" data-v="easy">Países conocidos</button><button class="chip ${g.diff === 'all' ? 'sel' : ''}" data-a="geoDiff" data-v="all">Todos (${COUNTRIES.length})</button></div>
+        <div class="chips">${Object.entries(GEO_REG).map(([k, v]) => `<button class="chip ${g.regs.includes(k) ? 'sel' : ''}" data-a="geoReg" data-v="${k}">${v}</button>`).join('')}</div>
+        <span class="small muted">${GEO.pool(g.diff, g.regs).length} países en juego.</span></div>` : ''}
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}
       <div class="stack"><span class="eyebrow">Preguntas</span><div class="chips">${[5, 10, 15, 20, 30].map(n => `<button class="chip ${g.n === n ? 'sel' : ''}" data-a="trivN" data-v="${n}">${n}</button>`).join('')}</div></div>
       <div class="row"><button class="btn big" data-a="g" data-f="begin" ${g.cats.length ? '' : 'disabled'}>Empezar</button></div></div>`; }
-    if (g.ph === 'end') return endView(this.endTitle || 'Fin de la trivia');
+    if (g.ph === 'end') return endView('Fin de la trivia');
     const q = g.qs[g.i];
     const host = S.mode === 'host';
     const n = Object.keys(g.ans).length, tot = hostPlayers().length;
     return `<div class="stagebox">
       <div class="spread"><span class="pill">${esc(q.c)} · ${g.i + 1}/${g.qs.length}</span>${g.ph === 'q' && host ? timerEl() : ''}</div>
       <p class="q">${esc(q.q)}</p>
-      ${this.media ? `<div class="geo-media">${this.media(q)}</div>` : ''}
-      ${g.ph === 'r' && q.ans && this.media ? `<p class="q" style="text-align:center;color:var(--sun)">${esc(q.ans)}</p>` : ''}
+      ${GEO.media(q) ? `<div class="geo-media">${GEO.media(q)}</div>` : ''}
+      ${g.ph === 'r' && q.ans ? `<p class="q" style="text-align:center;color:var(--sun)">${esc(q.ans)}</p>` : ''}
       <div class="opts">${g.opts.map((oi, i) => `<div class="opt c${i} ${g.ph === 'r' ? (i === g.c ? 'win' : 'dim') : ''}"><span class="k">${'ABCD'[i]}</span>${esc(q.o[oi])}</div>`).join('')}</div>
       ${g.ph === 'q'
         ? `<div class="spread">${host ? `<span class="muted">${n} de ${tot} respondieron</span>` : `<span class="muted">Respondan en voz alta o con la mano.</span>`}<button class="btn" data-a="g" data-f="reveal">Revelar</button></div>`
@@ -1636,11 +1651,9 @@ const GEO_MODES = { flag: 'Banderas', sil: 'Siluetas', map: 'Mapa', cap: 'Capita
 function worldMap(c) {
   return `<svg class="geo-map" viewBox="0 0 1000 520" role="img" aria-label="Mapa del mundo con un país destacado">${WORLD.map(p => `<path d="${p.d}"${p.id === c.id ? ' class="hl"' : ''}/>`).join('')}${c.sm ? `<circle cx="${c.mx}" cy="${c.my}" r="16" class="ring"/><circle cx="${c.mx}" cy="${c.my}" r="4" class="dot2"/>` : ''}</svg>`;
 }
-GAMES.geo = Object.assign(Object.create(GAMES.trivia), {
-  endTitle: 'Fin de Banderas y mapas',
-  start() { newGame('geo', { ph: 'setup', modes: S.geoModes || ['flag', 'sil', 'map'], diff: S.geoDiff || 'easy', regs: S.geoRegs || Object.keys(GEO_REG), n: 10 }); pub({ t: 'wait', msg: 'Preparando Banderas y mapas' }); render(); },
-  pool() { const g = S.g; return COUNTRIES.filter(c => g.regs.includes(c.reg) && (g.diff === 'all' || c.e)); },
-  distract(c, pool, key) {
+const GEO = {
+  pool(diff, regs) { return COUNTRIES.filter(c => regs.includes(c.reg) && (diff === 'all' || c.e)); },
+  distract(c, key) {
     const val = x => key === 'cap' ? x.cap : x.n;
     const cand = COUNTRIES.filter(x => x !== c && val(x) && val(x) !== val(c));
     const tiers = [cand.filter(x => x.sub === c.sub), cand.filter(x => x.reg === c.reg), cand];
@@ -1648,39 +1661,22 @@ GAMES.geo = Object.assign(Object.create(GAMES.trivia), {
     for (const t of tiers) for (const x of shuffle(t)) { if (out.length >= 3) break; if (!out.some(o => val(o) === val(x))) out.push(x); }
     return out.map(val);
   },
-  begin() {
-    const g = S.g; const pool = this.pool();
-    if (!g.modes.length || pool.length < 4) { g.warn = 'Elige al menos un modo y una región con suficientes países.'; render(); return; }
-    S.geoModes = g.modes.slice(); S.geoDiff = g.diff; S.geoRegs = g.regs.slice();
-    const qs = []; const used = new Set(); let tries = 0;
-    while (qs.length < g.n && tries++ < 500) {
-      const mode = pick(g.modes); const c = pick(pool);
-      if (used.has(c.cc + mode) || (mode === 'cap' && !c.cap)) continue; used.add(c.cc + mode);
-      if (mode === 'cap') qs.push({ c: 'Capitales', q: `¿Cuál es la capital de ${c.n}?`, o: [c.cap, ...this.distract(c, pool, 'cap')], a: 0, m: `<img class="geo-flag sm" src="${c.flag}" alt="">`, ans: c.cap });
-      else qs.push({ c: GEO_MODES[mode], q: mode === 'flag' ? '¿De qué país es esta bandera?' : mode === 'sil' ? '¿Qué país tiene esta forma?' : '¿Qué país está marcado en el mapa?', o: [c.n, ...this.distract(c, pool, 'n')], a: 0, cc: c.cc, mode, ans: c.n });
+  make(mode, pool, used) {
+    for (let tries = 0; tries < 60; tries++) {
+      const c = pick(pool); if (used.has(c.cc + mode) || (mode === 'cap' && !c.cap)) continue; used.add(c.cc + mode);
+      if (mode === 'cap') return { c: GEO_MODES.cap, q: `¿Cuál es la capital de ${c.n}?`, o: [c.cap, ...this.distract(c, 'cap')], a: 0, m: `<img class="geo-flag sm" src="${c.flag}" alt="">`, ans: c.cap };
+      return { c: GEO_MODES[mode], q: mode === 'flag' ? '¿De qué país es esta bandera?' : mode === 'sil' ? '¿Qué país tiene esta forma?' : '¿Qué país está marcado en el mapa?', o: [c.n, ...this.distract(c, 'n')], a: 0, cc: c.cc, mode, ans: c.n };
     }
-    g.qs = qs; g.i = 0; this.ask();
+    return null;
   },
   media(q) {
-    if (q.m) return q.m; const c = COUNTRIES.find(x => x.cc === q.cc); if (!c) return '';
+    if (q.m) return q.m; if (!q.cc) return ''; const c = COUNTRIES.find(x => x.cc === q.cc); if (!c) return '';
     if (q.mode === 'flag') return `<img class="geo-flag" src="${c.flag}" alt="Bandera">`;
     if (q.mode === 'sil') return `<svg class="geo-sil" viewBox="0 0 200 200" role="img" aria-label="Silueta de un país"><path d="${c.sil}"/></svg>`;
     return worldMap(c);
   },
-  view() {
-    const g = S.g;
-    if (g.ph !== 'setup') return GAMES.trivia.view.call(this);
-    const pool = this.pool();
-    return `<div class="stagebox">
-      <p class="muted">Adivina el país por su bandera, su silueta o su ubicación en el mapa, o su capital. Se juega igual que la Trivia: con sala cada uno responde en su celular (más rápido, más puntos) y sin sala se responde en voz alta.</p>
-      <div class="stack"><span class="eyebrow">Modos</span><div class="chips">${Object.entries(GEO_MODES).map(([k, v]) => `<button class="chip ${g.modes.includes(k) ? 'sel' : ''}" data-a="geoMode" data-v="${k}">${v}</button>`).join('')}</div></div>
-      <div class="stack"><span class="eyebrow">Países</span><div class="chips"><button class="chip ${g.diff === 'easy' ? 'sel' : ''}" data-a="geoDiff" data-v="easy">Conocidos</button><button class="chip ${g.diff === 'all' ? 'sel' : ''}" data-a="geoDiff" data-v="all">Todos (${COUNTRIES.length})</button></div></div>
-      <div class="stack"><span class="eyebrow">Regiones</span><div class="chips">${Object.entries(GEO_REG).map(([k, v]) => `<button class="chip ${g.regs.includes(k) ? 'sel' : ''}" data-a="geoReg" data-v="${k}">${v}</button>`).join('')}</div><span class="small muted">${pool.length} países en juego.</span></div>
-      <div class="stack"><span class="eyebrow">Preguntas</span><div class="chips">${[5, 10, 15, 20, 30].map(n => `<button class="chip ${g.n === n ? 'sel' : ''}" data-a="trivN" data-v="${n}">${n}</button>`).join('')}</div></div>
-      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}
-      <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
-  },
-});
+};
+const GEO_LABELS = Object.values(GEO_MODES);
 
 function endView(title) {
   const r = roster().map(p => ({ ...p, s: scoreOf(p.name) })).sort((a, b) => b.s - a.s);
@@ -2956,7 +2952,6 @@ const ACT = {
   adj(d) { addPts(d.n, +d.v); if (lastPub) pub(lastPub); render(); },
   resetScores() { if (S.confirmReset) { Object.keys(S.scores).forEach(k => S.scores[k] = 0); save(); S.confirmReset = false; if (lastPub) pub(lastPub); render(); } else { S.confirmReset = true; const b = document.querySelector('[data-a=resetScores]'); if (b) b.textContent = 'Toca otra vez para confirmar'; setTimeout(() => S.confirmReset = false, 3000); } },
   g(d) { const G = GAMES[S.g.id]; G[d.f] && G[d.f](); },
-  geoMode(d) { const g = S.g; const i = g.modes.indexOf(d.v); if (i >= 0) g.modes.splice(i, 1); else g.modes.push(d.v); g.warn = ''; render(); },
   geoDiff(d) { S.g.diff = d.v; render(); },
   geoReg(d) { const g = S.g; const i = g.regs.indexOf(d.v); if (i >= 0) g.regs.splice(i, 1); else g.regs.push(d.v); g.warn = ''; render(); },
   trivCat(d) { const g = S.g; const i = g.cats.indexOf(d.v); if (i >= 0) g.cats.splice(i, 1); else g.cats.push(d.v); render(); },
