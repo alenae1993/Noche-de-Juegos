@@ -172,6 +172,17 @@ a{color:var(--sun)}
 input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;background:none}
 .yr{font-family:var(--f-display);font-size:3.4rem;color:var(--sun);text-align:center}
 
+.tcard{background:var(--ink);color:#1b1033;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px;max-width:420px;width:100%;margin:0 auto;box-shadow:0 6px 0 var(--coral)}
+.tcard .tw{font-family:var(--f-display);font-size:clamp(1.6rem,6vw,2.4rem);text-align:center;color:var(--stage);word-break:break-word}
+.tcard .tf{display:flex;flex-direction:column;gap:6px;border-top:3px dashed rgba(27,16,51,.25);padding-top:10px}
+.tcard .tf span{font-weight:800;font-size:1.1rem;color:#b3261e;text-align:center}
+.hang{width:100%;max-width:280px;margin:0 auto;display:block}
+.hmask{font-family:var(--f-display);font-size:clamp(1.6rem,5vw,2.8rem);letter-spacing:.18em;color:var(--sun);word-break:break-word;line-height:1.3}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.keys button{font-family:var(--f-display);font-size:1.2rem;padding:10px 0;border-radius:10px;background:var(--stage-3)}
+.keys button[disabled]{opacity:.25}
+.blank{color:var(--sun);border-bottom:3px solid var(--sun);padding:0 .3em}
+.bubble{background:var(--stage-3);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:4px;max-width:640px;margin:0 auto;width:100%}
 .btab{border-collapse:separate;border-spacing:6px;min-width:100%}
 .btab th{text-align:left;font-size:.85rem;color:var(--muted);font-weight:700;white-space:nowrap;padding:0 4px}
 .btab td{vertical-align:top}
@@ -512,6 +523,94 @@ const BASTA_CATS_X = ['Trago o copete','Lugar para una primera cita','Excusa par
 const BASTA_DEFAULT = ['Nombre','Apellido','Animal','Fruta o verdura','País','Color','Cosa','Marca'];
 const BASTA_LETTERS = 'ABCDEFGHIJLMNOPRSTUV';
 
+// Tabú: [palabra, [5 palabras prohibidas]]
+const TABU = [
+  ['Empanada',['Pino','Horno','Masa','Dieciocho','Queso']],['Completo',['Hot dog','Palta','Pan','Vienesa','Mayonesa']],['Cueca',['Baile','Pañuelo','Huaso','Dieciocho','Zapateo']],
+  ['Asado',['Carne','Parrilla','Carbón','Fuego','Domingo']],['Playa',['Arena','Mar','Sol','Verano','Toalla']],['Cumpleaños',['Torta','Velas','Regalo','Fiesta','Años']],
+  ['Celular',['Teléfono','Llamar','Pantalla','Mensaje','Batería']],['Metro',['Tren','Estación','Línea','Santiago','Vagón']],['Perro',['Ladrar','Mascota','Guau','Hueso','Gato']],
+  ['Lluvia',['Agua','Paraguas','Nube','Mojado','Invierno']],['Fútbol',['Pelota','Gol','Arco','Cancha','Equipo']],['Profesor',['Colegio','Clase','Alumno','Enseñar','Prueba']],
+  ['Doctor',['Médico','Hospital','Enfermo','Receta','Consulta']],['Avión',['Volar','Aeropuerto','Piloto','Viaje','Alas']],['Navidad',['Viejo Pascuero','Regalos','Árbol','Diciembre','Pesebre']],
+  ['Pizza',['Italia','Queso','Masa','Horno','Porción']],['Café',['Taza','Negro','Despertar','Cafeína','Leche']],['Dormir',['Cama','Sueño','Noche','Almohada','Siesta']],
+  ['Volcán',['Lava','Erupción','Montaña','Fuego','Villarrica']],['Terremoto',['Temblor','Tierra','Sismo','Escala','Moverse']],['Bicicleta',['Pedal','Rueda','Andar','Casco','Ciclista']],
+  ['Guitarra',['Cuerdas','Tocar','Música','Instrumento','Acorde']],['Supermercado',['Comprar','Carro','Caja','Lider','Jumbo']],['Matrimonio',['Boda','Novios','Casarse','Anillo','Iglesia']],
+  ['Vacaciones',['Viaje','Descanso','Verano','Trabajo','Hotel']],['Helado',['Frío','Cono','Sabor','Verano','Crema']],['Gato',['Miau','Mascota','Bigotes','Perro','Felino']],
+  ['Computador',['Teclado','Pantalla','Mouse','Internet','Notebook']],['Bombero',['Fuego','Incendio','Manguera','Camión','Voluntario']],['Sol',['Calor','Estrella','Día','Luz','Amarillo']],
+  ['Selfie',['Foto','Celular','Cara','Cámara','Instagram']],['Feria',['Verdura','Fruta','Puesto','Casero','Domingo']],['Micro',['Bus','Paradero','Chofer','Pasaje','Transporte']],
+  ['Once',['Té','Pan','Tarde','Comida','Marraqueta']],['Pisco',['Uva','Sour','Piscola','Perú','Elqui']],['Teleserie',['Televisión','Capítulo','Actor','Novela','Canal']],
+  ['Dinosaurio',['Extinto','Jurásico','Fósil','Tiranosaurio','Grande']],['Fantasma',['Muerto','Sábana','Susto','Casa','Espíritu']],['Pirata',['Barco','Tesoro','Parche','Loro','Mar']],
+  ['Zoológico',['Animales','Jaula','León','Visitar','Parque']],['Hospital',['Doctor','Enfermo','Urgencia','Cama','Clínica']],['Banco',['Dinero','Cuenta','Plata','Sentarse','Cajero']],
+  ['Mamá',['Madre','Hijo','Papá','Familia','Día']],['Abuelo',['Viejo','Nieto','Papá','Familia','Abuela']],['Reloj',['Hora','Tiempo','Muñeca','Minuto','Despertador']],
+  ['Espejo',['Reflejo','Mirarse','Vidrio','Baño','Cara']],['Paraguas',['Lluvia','Abrir','Mojarse','Agua','Sombrilla']],['Llave',['Puerta','Abrir','Cerradura','Casa','Llavero']],
+  ['Cine',['Película','Pantalla','Cabritas','Entrada','Sala']],['Gimnasio',['Ejercicio','Pesas','Músculos','Entrenar','Máquinas']],['Bebé',['Guagua','Llorar','Pañal','Niño','Mamadera']],
+  ['Huevo',['Gallina','Yema','Clara','Frito','Desayuno']],['Tetera',['Agua','Hervir','Té','Cocina','Hervidor']],['Pan',['Marraqueta','Hallulla','Panadería','Harina','Desayuno']],
+  ['Fuegos artificiales',['Año Nuevo','Cielo','Explosión','Colores','Valparaíso']],['Mundial',['Fútbol','Copa','Selección','Cuatro años','FIFA']],['Payaso',['Circo','Nariz','Reír','Chiste','Maquillaje']],
+  ['Taxi',['Auto','Chofer','Taxímetro','Uber','Amarillo']],['Volantín',['Hilo','Viento','Septiembre','Comisión','Cortar']],['Torta',['Cumpleaños','Pastel','Velas','Crema','Dulce']],
+  ['Selección chilena',['La Roja','Fútbol','Copa América','Jugadores','Equipo']],['Moái',['Isla de Pascua','Rapa Nui','Estatua','Piedra','Cabeza']],['Cordillera',['Andes','Montaña','Nieve','Cerro','Chile']],
+  ['Resaca',['Carrete','Tomar','Dolor de cabeza','Mañana','Alcohol'],1],['Piscola',['Pisco','Coca','Trago','Vaso','Hielo'],1],['Motel',['Pieza','Hotel','Pareja','Hora','Cama'],1],
+  ['Tinder',['Aplicación','Match','Cita','Deslizar','Pareja'],1],['Carrete',['Fiesta','Tomar','Bailar','Noche','Amigos'],1],['Ex',['Pareja','Terminar','Antiguo','Pololo','Polola'],1],
+];
+
+// Ahorcado: [categoría, palabra o frase]
+const AHORCADO = [
+  ['Animal','Cóndor'],['Animal','Hipopótamo'],['Animal','Murciélago'],['Animal','Pingüino'],['Animal','Cocodrilo'],['Animal','Mariposa'],['Animal','Camaleón'],['Animal','Ornitorrinco'],
+  ['País','Australia'],['País','Marruecos'],['País','Guatemala'],['País','Dinamarca'],['País','Venezuela'],['País','Filipinas'],['País','Nicaragua'],['País','Singapur'],
+  ['Comida chilena','Pastel de choclo'],['Comida chilena','Charquicán'],['Comida chilena','Porotos granados'],['Comida chilena','Chorrillana'],['Comida chilena','Sopaipilla'],['Comida chilena','Mote con huesillo'],['Comida chilena','Calzones rotos'],
+  ['Lugar de Chile','Torres del Paine'],['Lugar de Chile','Valparaíso'],['Lugar de Chile','Chiloé'],['Lugar de Chile','San Pedro de Atacama'],['Lugar de Chile','Isla de Pascua'],['Lugar de Chile','Puerto Varas'],
+  ['Película','Titanic'],['Película','El Rey León'],['Película','Toy Story'],['Película','Volver al futuro'],['Película','Harry Potter'],['Película','Jurassic Park'],['Película','Coco'],['Película','Machuca'],
+  ['Objeto','Refrigerador'],['Objeto','Paraguas'],['Objeto','Calculadora'],['Objeto','Microondas'],['Objeto','Destornillador'],['Objeto','Aspiradora'],['Objeto','Bicicleta'],
+  ['Profesión','Astronauta'],['Profesión','Veterinario'],['Profesión','Carpintero'],['Profesión','Arquitecto'],['Profesión','Periodista'],['Profesión','Bombero'],
+  ['Deporte','Básquetbol'],['Deporte','Natación'],['Deporte','Esgrima'],['Deporte','Rugby'],['Deporte','Ciclismo'],['Deporte','Rodeo'],
+  ['Dicho chileno','Al tiro'],['Dicho chileno','Estar en la papa'],['Dicho chileno','Pasarlo chancho'],['Dicho chileno','Echar la foca'],['Dicho chileno','Quedar pato'],['Dicho chileno','Hacer la cimarra'],
+  ['Carrete','Despedida de soltero',1],['Carrete','Ponerse la camiseta',1],['Carrete','Pisco sour',1],['Carrete','Hora feliz',1],
+];
+
+// Chamullo (tipo Fibbage): [dato con ___, respuesta verdadera, [alias aceptados], mentira de la casa]
+const CHAMULLO = [
+  ['Los pulpos tienen ___ corazones.','tres',['3'],'dos'],
+  ['Los flamencos son rosados por los ___ que comen.','camarones',['camaron','crustaceos','algas'],'tomates'],
+  ['En inglés, una bandada de cuervos se llama "murder", que significa ___.','asesinato',['crimen','homicidio'],'oscuridad'],
+  ['La Torre Eiffel puede crecer unos 15 centímetros en verano por ___.','el calor',['calor','dilatacion','la dilatacion'],'el viento'],
+  ['Los koalas pueden dormir hasta ___ horas al día.','22',['veintidos','20'],'14'],
+  ['La miel bien guardada no ___ nunca.','se echa a perder',['se pudre','vence','caduca','se descompone'],'pierde el dulzor'],
+  ['Las nutrias marinas se toman de ___ para no separarse mientras duermen.','las manos',['manos','la mano','patas'],'la cola'],
+  ['Los tiburones existen desde antes que los ___.','árboles',['arboles','arbol'],'peces'],
+  ['Cleopatra vivió más cerca de la llegada a la Luna que de la construcción de ___.','las pirámides',['piramides','la gran piramide','las piramides de giza'],'Roma'],
+  ['En Suiza es ilegal tener solo un ___ como mascota, porque se sienten solos.','cuy',['conejillo de indias','cuyo','cobayo','cobaya'],'loro'],
+  ['La palabra "robot" viene del checo y significa ___.','trabajo forzado',['trabajo','servidumbre','esclavo','trabajo obligatorio'],'hombre de metal'],
+  ['El primer nombre de Google fue ___.','BackRub',['back rub','backrub'],'Searchy'],
+  ['El verdadero nombre de Pablo Neruda era Ricardo Eliécer ___.','Neftalí Reyes',['neftali reyes basoalto','neftali','reyes'],'Pablo Basoalto'],
+  ['Los Prisioneros se formaron en la comuna de ___.','San Miguel',['sanmiguel'],'La Cisterna'],
+  ['Cuando Pedro de Valdivia fundó Santiago, la llamó Santiago del ___.','Nuevo Extremo',['nuevo extremo'],'Mapocho'],
+  ['En Venus, un día dura más que ___.','un año',['su año','el año','un ano'],'un mes'],
+  ['El animal nacional de Escocia es el ___.','unicornio',[],'ciervo'],
+  ['Los ojos del avestruz son más grandes que su ___.','cerebro',[],'pico'],
+  ['Los plátanos son ligeramente ___.','radiactivos',['radioactivos','radioactivo','radiactivo'],'magnéticos'],
+  ['El miedo a las palabras largas se llama ___.','hipopotomonstrosesquipedaliofobia',['hipopotomonstrosesquipedaliofobia'],'longiverbofobia'],
+  ['Las mariposas sienten el sabor de las cosas con ___.','las patas',['patas','los pies','pies'],'las alas'],
+  ['Los delfines duermen con ___.','un ojo abierto',['medio cerebro','la mitad del cerebro','un ojo'],'la boca abierta'],
+  ['El perro de Tintín se llama ___.','Milú',['milu','snowy'],'Bobi'],
+  ['Pac-Man originalmente se iba a llamar ___.','Puck-Man',['puckman','puck man'],'Pizza-Man'],
+  ['La Mona Lisa no tiene ___.','cejas',['ceja','pestañas'],'aretes'],
+  ['El himno nacional de Grecia tiene ___ estrofas.','158',['ciento cincuenta y ocho'],'12'],
+  ['El astronauta Alan Shepard jugó ___ en la Luna.','golf',[],'fútbol'],
+  ['Napoleón fue atacado una vez por cientos de ___.','conejos',['conejo'],'palomas'],
+  ['El país con más pirámides del mundo es ___.','Sudán',['sudan'],'México'],
+  ['En la Antártica hay una cascada de color ___.','rojo',['roja','rojo sangre','sangre'],'verde'],
+  ['Los gatos no pueden sentir el sabor ___.','dulce',['de lo dulce','del azucar','azucar'],'salado'],
+  ['En Japón hay una isla habitada casi solo por ___.','conejos',['conejo'],'gatos'],
+  ['Los pingüinos de Humboldt viven en las costas de Chile y ___.','Perú',['peru'],'Argentina'],
+  ['El nombre "Rapa Nui" se usa para la isla, su pueblo y su ___.','idioma',['lengua','lenguaje'],'volcán'],
+  ['Un caracol puede tener miles de ___.','dientes',['diente'],'ojos'],
+  ['La jirafa duerme apenas unas ___ horas al día.','dos',['2','una','pocas'],'diez'],
+  ['El corazón de una gamba (camarón) está en su ___.','cabeza',['la cabeza'],'cola'],
+  ['Antes de llamarse así, la Coca-Cola se vendía como ___.','medicamento',['remedio','tonico','medicina','jarabe'],'cerveza'],
+  ['La lengua de la jirafa es de color ___.','azul oscuro',['azul','morado','negro','negra','violeta'],'rosado'],
+  ['Las vacas tienen ___ estómagos (o compartimentos del estómago).','cuatro',['4'],'dos'],
+];
+
+// Teléfono descompuesto: ideas para empezar
+const TEL_IDEAS = ['Un perro manejando una micro','Mi abuela haciendo parkour','Un pingüino en la playa de Viña','Una empanada con superpoderes','El Viejo Pascuero de vacaciones en verano','Un astronauta comiendo un completo','Un dinosaurio en el metro','Un gato jugando a la pelota con un ovillo gigante','Una sirena en la feria comprando paltas','Un fantasma con miedo a la oscuridad','Un cóndor tomando once','Un robot bailando cueca','Una vaca en un ascensor','Un pulpo tocando batería','El Moái sacándose una selfie','Un caracol ganando una carrera','Un pirata perdido en el mall','Un hipopótamo en clases de ballet','Un volcán estornudando','Una llama con lentes de sol','Un bombero rescatando a un gato de un árbol','Una abuela en moto','Un tiburón vegetariano','Un mago sacando un conejo de un completo','Un perro con terno yendo a la oficina','Un helado derritiéndose en el desierto','Un zombi en una entrevista de trabajo','Una ballena en una piscina inflable','Un unicornio atrapado en un taco','Un mono jugando ajedrez'];
+
 // ===================== utilidades =====================
 const $app = document.getElementById('app');
 const COLORS = ['#ff6a55','#ffc23d','#27c7b4','#5a83ff','#ff4fa3','#3ddc84','#c58bff','#ff9a3d','#7fe0ff','#f2f27a','#ff8fb8','#a6e36b'];
@@ -587,6 +686,7 @@ async function peerHost(code) {
     peer.on('open', () => { opened = true; resolve(api); });
     peer.on('error', e => { if (!opened) reject(Object.assign(new Error(e.type), { code: e.type })); });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+    api.dm = (to, data) => { const c = conns.get(to); try { if (c && c.open) c.send({ t: 'dm', d: data }); } catch (e) {} };
     peer.on('connection', conn => {
       conn.on('open', () => { conns.set(conn.peer, conn); try { conn.send({ t: 'host', p: my }); } catch (e) {} });
       conn.on('data', d => {
@@ -607,12 +707,13 @@ async function peerPhone(code) {
     const snap = () => { const a = [{ peer: myId, sameTab: true, isMe: true, presence: my }]; if (host) a.push({ peer: 'host', sameTab: false, isMe: false, presence: host }); return a; };
     const fire = () => { const ch = { peers: snap(), joined: [], left: [], updated: [] }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
     const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; try { if (conn && conn.open) conn.send({ t: 'pres', p: my }); } catch (e) {} }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
+    const dmCbs = new Set(); api.onDm = f => dmCbs.add(f);
     const fail = code => { if (done) return; done = true; try { peer.destroy(); } catch (e) {} reject(Object.assign(new Error(code), { code })); };
     peer.on('open', id => {
       myId = id;
       conn = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' });
       conn.on('open', () => { if (done) return; done = true; try { conn.send({ t: 'pres', p: my }); } catch (e) {} resolve(api); });
-      conn.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } });
+      conn.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
       conn.on('close', () => { host = null; fire(); });
     });
     peer.on('error', e => fail(e.type));
@@ -622,7 +723,7 @@ async function peerPhone(code) {
 const NET_ERR = { 'peer-unavailable': 'No existe una sala con ese código. Revisa las letras.', 'timeout': 'La sala no respondió. Revisa el código y que ambos tengan internet.', 'sin-internet': 'No se pudo cargar la conexión. Revisa tu internet.', 'network': 'Problema de red. Intenta de nuevo.', 'browser-incompatible': 'Este navegador no permite la conexión directa.' };
 const netMsg = e => NET_ERR[e && e.code] || ('Error de conexión (' + ((e && e.code) || 'desconocido') + ').');
 
-const P = { bAns: {}, st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
+const P = { dm: {}, bAns: {}, st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
 
 async function joinRoom(code, role) {
   if (NR) { try { await NR.leave(); } catch (e) {} NR = null; }
@@ -662,6 +763,8 @@ function onHostPeers(ch) {
       if (S.seen[p.peer] !== sig) { S.seen[p.peer] = sig; const G = GAMES[g.id]; G.onAnswer && G.onAnswer({ id: p.peer, name, color: safeColor(p.presence.color) }, a); }
     }
     if (g && g.id === 'draw' && p.presence.dr && p.presence.dr.k === g.key && g.drawer && p.peer === g.drawer.id) drawIngest(p.presence.dr);
+    if (g && g.id === 'tel' && p.presence.dr && p.presence.dr.k === g.key) telIngest(p.peer, p.presence.dr);
+    if (g && g.id === 'tel' && p.presence.need === g.key) GAMES.tel.resend(p.peer);
   }
   if (ch.joined.length || ch.left.length) { if (lastPub) pub(lastPub); render(); }
   else if (S.view !== 'game') render();
@@ -678,7 +781,7 @@ function onPhonePeers(ch) {
     P.sig = sig; P.st = st;
     if (!prev || !st || prev.k !== st.k || prev.ph !== st.ph) P.at = Date.now();
     if (!prev || !st || prev.k !== st.k) { P.peek = false; }
-    if (st && st.t === 'draw' && (!prev || prev.k !== st.k)) { P.strokes = []; P.cur = null; P.clr = 0; }
+    if (st && (st.t === 'draw' || st.t === 'tel') && (!prev || prev.k !== st.k)) { P.strokes = []; P.cur = null; P.clr = 0; }
     render();
   }
 }
@@ -778,6 +881,10 @@ const GAME_LIST = [
   { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Con sala', 'Sin sala'] },
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Con sala', 'Sin sala'] },
+  { id: 'tabu', name: 'Tabú', d: 'Describe la palabra sin decir ninguna de las prohibidas.', glyph: '⊘', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
+  { id: 'hang', name: 'Ahorcado', d: 'Adivinen la palabra letra por letra antes de que se complete el monito.', glyph: 'A_', c: 'c0', tags: ['Con sala', 'Sin sala'] },
+  { id: 'cham', name: 'Chamullo', d: 'Inventa una respuesta falsa creíble y descubre cuál es el dato real.', glyph: '¿!', c: 'c3', tags: ['Solo con sala', '2 o más'] },
+  { id: 'tel', name: 'Teléfono descompuesto', d: 'Escribe, dibuja, describe… y miren cómo se deforma la frase.', glyph: '✎', c: 'c2', tags: ['Solo con sala', '3 a 10'] },
   { id: 'basta', name: 'Basta', d: 'Sale una letra y a llenar categorías. El primero que termina grita ¡BASTA!', glyph: 'B', c: 'c3', tags: ['Con sala', 'Sin sala'] },
   { id: 'feria', name: 'Feria de cachureos', d: 'Todos cambian cartas a gritos al mismo tiempo. Junta 9 iguales y toca la campana.', glyph: '9', c: 'c2', tags: ['Solo con sala', '3 a 10'] },
   { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Con sala', 'Sin sala', 'Spotify'] },
@@ -886,6 +993,64 @@ PHONE.basta = st => {
   return `<div class="spread"><span class="eyebrow">Empieza con</span>${phoneTimer(st)}</div><div class="code" style="text-align:center;font-size:4rem">${esc(st.L)}</div>
     <div class="stack">${st.cats.map((c, i) => { const v = ans[i] || ''; const ok = startsWith(v, st.L); return `<label class="stack" style="gap:4px"><span class="small ${v && !ok ? '' : 'muted'}" style="${v && !ok ? 'color:var(--bad)' : ''}">${esc(c)}${v && !ok ? ' · debe empezar con ' + esc(st.L) : ''}</span><input id="b${i}" data-in="bas" data-i="${i}" value="${esc(v)}" maxlength="40" autocomplete="off" autocapitalize="sentences"></label>`; }).join('')}</div>
     <button class="btn big bad" data-a="bBasta" ${done ? '' : 'disabled'} id="bbtn">¡BASTA!</button>`;
+};
+PHONE.tabu = st => {
+  const me = P.me, myTeam = st.tm ? (st.tm[0].includes(me) ? 0 : st.tm[1].includes(me) ? 1 : -1) : -1;
+  const tn = i => esc((st.tn || [])[i] || '');
+  const head = `<div class="spread"><span class="pill">${myTeam >= 0 ? 'Tu equipo: ' + tn(myTeam) : 'Sin equipo'}</span><span class="pill">${tn(0)} ${st.sc[0]} · ${st.sc[1]} ${tn(1)}</span></div>`;
+  if (st.ph === 'play' && st.card) {
+    if (me === st.d) return `${head}<div class="spread"><span class="eyebrow">Describe a tu equipo</span>${phoneTimer(st)}</div>${tabuCard(st.card)}<div class="row center"><button class="btn ok big" data-a="tabuP" data-v="ok">Acierto</button><button class="btn alt big" data-a="tabuP" data-v="pass">Pasar</button></div>`;
+    if (myTeam === 1 - st.cur) return `${head}<div class="spread"><span class="eyebrow">Vigila a ${esc(st.dn)}</span>${phoneTimer(st)}</div>${tabuCard(st.card)}<button class="buzz" data-a="tabuP" data-v="tabu">¡TABÚ!</button><p class="small muted" style="text-align:center">Tócalo si dice la palabra o una prohibida.</p>`;
+    return `${head}<div class="secret"><h2>¡Adivina!</h2><p>${esc(st.dn)} está describiendo.</p>${phoneTimer(st)}</div>`;
+  }
+  if (st.ph === 'ready') return `${head}<div class="secret"><h3>Turno de ${tn(st.cur)}</h3><p class="muted">${me === st.d ? 'Te toca describir. Prepárate.' : 'Describe ' + esc(st.dn) + '.'}</p></div>`;
+  return `${head}<div class="secret"><h3>Mira la pantalla</h3></div>`;
+};
+PHONE.hang = st => {
+  const top = `<div class="stack" style="align-items:center;text-align:center"><span class="eyebrow">${esc(st.cat)}</span><div class="hmask" style="font-size:1.6rem">${esc(st.mask || '')}</div><span class="small muted">Errores ${st.err}/6</span></div>`;
+  if (st.ph === 'wait') {
+    if (st.setter === P.me) return `<div class="panel stack"><h3>Te toca poner la palabra</h3><p class="muted small">Una palabra o frase corta (máx. 30 letras). Que nadie vea tu pantalla.</p><input id="hw" maxlength="30" placeholder="Palabra secreta" data-enter="hangSet" autocomplete="off"><button class="btn big" data-a="hangSet">Listo</button></div>`;
+    return `<div class="secret"><h3>${esc(st.sn)} está eligiendo la palabra</h3></div>`;
+  }
+  if (st.ph === 'res') return `<div class="secret"><span class="eyebrow">Era</span><h2>${esc(st.word || '')}</h2><p>${st.win ? esc(st.win) + ' la adivinó' : 'Nadie la adivinó'}</p></div>`;
+  if (st.setter === P.me) return `${top}<div class="secret"><h3>Tú pusiste esta palabra</h3><p class="muted">Si nadie la adivina, ganas 150.</p></div>`;
+  if (st.turn !== P.me) return `${top}<div class="secret"><h3>Turno de ${esc(st.tn)}</h3><p class="muted">${esc(st.msg || '')}</p></div>`;
+  return `${top}<p class="note">¡Te toca! Elige una letra.</p><div class="keys">${KEYS.map(k => `<button data-a="hangPL" data-v="${k}" ${(st.used || []).includes(k.toLowerCase()) ? 'disabled' : ''}>${k}</button>`).join('')}</div>
+    <div class="row"><input id="hps" placeholder="Arriesgar la palabra" data-enter="hangPS" style="flex:1" autocomplete="off"><button class="btn" data-a="hangPS">Arriesgar</button></div>`;
+};
+PHONE.cham = st => {
+  const q = `<p class="q" style="font-size:1.15rem">${esc(st.q).replace('___', '<span class="blank">_____</span>')}</p>`;
+  if (st.ph === 'write') {
+    const wrote = (st.wrote || []).includes(P.me), rej = (st.rej || []).includes(P.me);
+    if (wrote) return `${q}<div class="secret"><h3>Chamullo enviado</h3><p class="muted">Espera a los demás. Puedes cambiarlo:</p><div class="row" style="width:100%"><input id="cl" placeholder="Otra respuesta falsa" maxlength="60" data-enter="chamLie" style="flex:1" autocomplete="off"><button class="btn" data-a="chamLie">Cambiar</button></div></div>`;
+    return `${q}${rej ? `<p class="note">¡Esa es la respuesta verdadera! Escribe una falsa.</p>` : ''}<span class="small muted">Escribe una respuesta falsa pero creíble.</span><div class="row"><input id="cl" placeholder="Tu chamullo" maxlength="60" data-enter="chamLie" style="flex:1" autocomplete="off"><button class="btn" data-a="chamLie">Enviar</button></div>${phoneTimer(st)}`;
+  }
+  if (st.ph === 'vote') {
+    const s = sentFor(st); const own = (st.own || {})[P.me];
+    if (s !== undefined) return `${q}<div class="secret"><h3>Voto enviado</h3></div>`;
+    return `${q}<span class="eyebrow">¿Cuál es la verdad?</span><div class="list">${st.opts.filter(o => o.id !== own).map(o => `<button class="btn alt big" data-a="chamVote" data-v="${esc(o.id)}">${esc(o.t)}</button>`).join('')}</div>`;
+  }
+  if (st.ph === 'res') { const pts = (st.pts || {})[P.me] || 0; return `${q}<div class="secret"><span class="eyebrow">La verdad era</span><h2>${esc(st.truth || '')}</h2><h2 style="color:var(--sun)">+${pts}</h2></div>`; }
+  return PHONE.wait(st);
+};
+PHONE.tel = st => {
+  if (!(st.pl || []).includes(P.me)) return `<div class="secret"><h3>Esta partida empezó sin ti</h3><p class="muted">Entras en la próxima.</p></div>`;
+  if ((st.done || []).includes(P.me)) return `<div class="secret"><h3>¡Listo!</h3><p class="muted">Esperando a los demás…</p>${phoneTimer(st)}</div>`;
+  const task = P.dm[st.k];
+  if (st.s > 0 && !task) {
+    if (Date.now() - P.at > 4000 && P.needK !== st.k && NR) { P.needK = st.k; NR.presence({ need: st.k }).catch(() => {}); }
+    setTimeout(() => { if (P.st === st && !P.dm[st.k]) render(); }, 4500);
+    return `<div class="secret"><h3>Recibiendo tu tarea…</h3></div>`;
+  }
+  const head = `<div class="spread"><span class="eyebrow">Paso ${st.s + 1} de ${st.of}</span>${phoneTimer(st)}</div>`;
+  if (st.ty === 'draw') {
+    AFTER.push(phoneCanvasInit);
+    return `${head}<p>Dibuja: <b style="color:var(--sun);font-size:1.2rem">${esc(task.prompt ? task.prompt.text : '')}</b></p><div class="canvas-box"><canvas id="pc" width="700" height="700"></canvas></div>
+      <div class="pal">${PEN.map((c, i) => `<button style="background:${c}" class="${P.pen === i ? 'on' : ''}" data-a="pPen" data-v="${i}" aria-label="Color ${i + 1}"></button>`).join('')}<button class="btn alt" data-a="pClear">Borrar</button></div><button class="btn big" data-a="telDone">Listo</button>`;
+  }
+  if (st.s === 0) return `${head}<h3>Escribe una frase para empezar tu cadena</h3><input id="tt" maxlength="90" placeholder="Ej: Un perro manejando una micro" data-enter="telDone" autocomplete="off"><div class="row"><button class="btn alt" data-a="telIdea">Dame una idea</button><button class="btn big" data-a="telDone">Listo</button></div>`;
+  AFTER.push(() => { const cv = document.getElementById('tp'); if (cv && task.prompt) drawStrokes(cv.getContext('2d'), task.prompt.strokes || [], cv.width); });
+  return `${head}<h3>¿Qué es este dibujo?</h3><div class="canvas-box" style="max-width:360px"><canvas id="tp" width="600" height="600"></canvas></div><input id="tt" maxlength="90" placeholder="Descríbelo en una frase" data-enter="telDone" autocomplete="off"><button class="btn big" data-a="telDone">Listo</button>`;
 };
 PHONE.feria = st => {
   const tot = st.tot ? (st.tot[S.pname] || 0) : 0;
@@ -1525,6 +1690,308 @@ function bastaSend(b) {
   NR.presence({ a: { k: st.k, v: { r, b: b ? 1 : 0 } } }).catch(() => {});
 }
 
+// ---------- mensajes privados de la pantalla a un celular ----------
+const DMBUF = {};
+async function dmSend(to, obj) {
+  if (!NR) return;
+  if (TRANSPORT === 'peer') { NR.dm && NR.dm(to, obj); return; }
+  const str = JSON.stringify(obj), id = Math.random().toString(36).slice(2, 8), size = 2800, n = Math.max(1, Math.ceil(str.length / size));
+  for (let i = 0; i < n; i++) {
+    try { await NR.emit('dm', { to, id, i, n, c: str.slice(i * size, (i + 1) * size) }); }
+    catch (e) { if (e && e.code === 'not_permitted') { S.dmErr = true; render(); return; } }
+    await new Promise(r => setTimeout(r, 40));
+  }
+}
+function dmListen() {
+  if (!NR) return;
+  const handle = obj => { if (obj && obj.k) { P.dm[obj.k] = obj; render(); } };
+  if (TRANSPORT === 'peer') { NR.onDm && NR.onDm(handle); return; }
+  NR.on('dm', msg => {
+    const d = msg.data; if (!d || d.to !== P.me || typeof d.c !== 'string' || typeof d.id !== 'string') return;
+    const b = DMBUF[d.id] || (DMBUF[d.id] = { n: +d.n, parts: [] }); b.parts[+d.i] = d.c;
+    if (b.parts.filter(x => x !== undefined).length === b.n) { delete DMBUF[d.id]; try { handle(JSON.parse(b.parts.join(''))); } catch (e) {} }
+  });
+}
+function opSend(v) { feriaSend(v); }
+const noLocalView = (why) => `<div class="stagebox" style="text-align:center;align-items:center"><h2>Este juego necesita sala</h2><p class="muted" style="max-width:52ch">${why} Vuelve al inicio y toca <b>Crear sala</b>.</p><button class="btn big" data-a="leave">Ir al inicio</button></div>`;
+
+// ---------- TABÚ ----------
+const tabuCard = c => `<div class="tcard"><div class="tw">${esc(c[0])}</div><div class="tf">${c[1].map(f => `<span>${esc(f)}</span>`).join('')}</div></div>`;
+GAMES.tabu = {
+  start() { newGame('tabu', { ph: 'setup', rounds: 3, secs: 60 }); pub({ t: 'wait', msg: 'Preparando Tabú' }); render(); },
+  begin() {
+    const g = S.g; g.warn = '';
+    g.deck = shuffle(TABU.filter(c => S.adult || !c[2])); g.ci = -1; g.sc = [0, 0]; g.turn = 0; g.total = g.rounds * 2; g.di = [0, 0]; g.names = {};
+    if (S.mode === 'host') {
+      const r = shuffle(hostPlayers());
+      if (r.length < 4) { g.warn = 'Tabú con sala necesita al menos 4 jugadores (2 por equipo). Con menos, jueguen sin sala.'; render(); return; }
+      g.tm = [r.filter((_, i) => i % 2 === 0).map(p => p.id), r.filter((_, i) => i % 2 === 1).map(p => p.id)];
+      r.forEach(p => g.names[p.id] = p.name);
+    }
+    this.ready();
+  },
+  cur() { return S.g.turn % 2; },
+  describer() { const g = S.g; if (S.mode !== 'host') return null; const m = g.tm[this.cur()]; return m[g.di[this.cur()] % m.length]; },
+  ready() { const g = S.g; nextKey(); g.ph = 'ready'; g.got = []; stopTimer(); this.pub(); render(); },
+  go() { const g = S.g; g.ph = 'play'; this.next(); startTimer(g.secs, () => this.endTurn()); this.pub(); render(); },
+  next() { const g = S.g; g.ci++; if (g.ci >= g.deck.length) { g.deck = shuffle(g.deck); g.ci = 0; } g.card = g.deck[g.ci]; },
+  mark(kind) {
+    const g = S.g; if (g.ph !== 'play') return; const t = this.cur();
+    if (kind === 'ok') { g.sc[t]++; const d = this.describer(); if (d && g.names[d]) addPts(g.names[d], 50); }
+    else if (kind === 'tabu') { g.sc[t]--; showX(); }
+    g.got.push({ w: g.card[0], r: kind }); this.next(); this.pub(); render();
+  },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'play' || !a.v || a.v.ci !== g.ci) return; const t = this.cur();
+    if ((a.v.op === 'ok' || a.v.op === 'pass') && p.id === this.describer()) this.mark(a.v.op);
+    else if (a.v.op === 'tabu' && g.tm[1 - t].includes(p.id)) this.mark('tabu');
+  },
+  endTurn() { const g = S.g; if (g.ph !== 'play') return; stopTimer(); g.ph = 'turnEnd'; this.pub(); render(); },
+  nextTurn() {
+    const g = S.g; g.di[this.cur()]++; g.turn++;
+    if (g.turn >= g.total) {
+      g.ph = 'end';
+      if (S.mode === 'host' && g.sc[0] !== g.sc[1]) { const w = g.sc[0] > g.sc[1] ? 0 : 1; g.tm[w].forEach(id => g.names[id] && addPts(g.names[id], 100)); }
+      this.pub(); render(); return;
+    }
+    this.ready();
+  },
+  pub() { const g = S.g; if (S.mode !== 'host' || !g.tm) return; const d = this.describer(); pub({ t: 'tabu', k: g.key, ph: g.ph, ci: g.ci, card: g.ph === 'play' ? g.card : null, d, dn: g.names[d], tm: g.tm, tn: S.teams, sc: g.sc, cur: this.cur(), dur: g.ph === 'play' ? tLeft() : 0 }); },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    if (g.ph === 'setup') return `<div class="stagebox"><p class="muted">Dos equipos. Por turnos, alguien describe palabras a su equipo sin decir la palabra ni las 5 prohibidas. Acierto: +1 · Dijo una prohibida: −1 · Pasar: 0. ${host ? 'Los equipos se arman solos al azar. El que describe ve la tarjeta en su celular y el equipo rival también, con un botón para cobrar ¡TABÚ!' : 'Quien describe toma el dispositivo y alguien del equipo rival mira la tarjeta para vigilar.'}</p>
+      <div class="row"><input id="t0" value="${esc(S.teams[0])}" maxlength="20" data-in="team0" aria-label="Equipo 1" style="flex:1"><input id="t1" value="${esc(S.teams[1])}" maxlength="20" data-in="team1" aria-label="Equipo 2" style="flex:1"></div>
+      <div class="stack"><span class="eyebrow">Turnos por equipo</span><div class="chips">${[2, 3, 4, 5].map(n => `<button class="chip ${g.rounds === n ? 'sel' : ''}" data-a="tabuR" data-v="${n}">${n}</button>`).join('')}</div></div>
+      <div class="stack"><span class="eyebrow">Segundos por turno</span><div class="chips">${[45, 60, 90].map(n => `<button class="chip ${g.secs === n ? 'sel' : ''}" data-a="tabuS" data-v="${n}">${n}</button>`).join('')}</div></div>
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}<div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    const t = this.cur();
+    const teams = `<div class="teams">${[0, 1].map(i => `<div class="team ${i === t && g.ph !== 'end' ? 'act' : ''}"><b>${esc(S.teams[i])}</b><span class="pts">${g.sc[i]}</span>${host ? `<span class="small muted">${g.tm[i].map(id => esc(g.names[id] || '?')).join(', ')}</span>` : ''}</div>`).join('')}</div>`;
+    const dn = host ? esc(g.names[this.describer()] || '?') : '';
+    if (g.ph === 'ready') return `<div class="stagebox" style="text-align:center">${teams}<span class="eyebrow">Turno ${g.turn + 1} de ${g.total}</span><h2>Turno de ${esc(S.teams[t])}</h2>
+      <p class="q" style="font-size:1.3rem">${host ? `Describe <span style="color:var(--sun)">${dn}</span>. Mira tu celular.` : 'Pásenle el dispositivo a quien va a describir. Alguien del equipo rival vigila la tarjeta.'}</p>
+      <div class="row center"><button class="btn big" data-a="g" data-f="go">Empezar (${g.secs} s)</button></div></div>`;
+    if (g.ph === 'play') {
+      if (host) return `<div class="stagebox" style="text-align:center">${teams}<div class="row center">${timerEl()}</div><p class="q" style="font-size:1.4rem"><span style="color:var(--sun)">${dn}</span> describe a ${esc(S.teams[t])}</p>
+        <p class="muted">Aciertos este turno: <b>${g.got.filter(x => x.r === 'ok').length}</b>${g.got.length ? ` · Última: ${esc(g.got[g.got.length - 1].w)} (${{ ok: 'acierto', tabu: 'tabú', pass: 'pasó' }[g.got[g.got.length - 1].r]})` : ''}</p>
+        <div class="row center"><button class="btn alt" data-a="g" data-f="endTurn">Terminar turno</button></div></div>`;
+      return `<div class="stagebox">${teams}<div class="spread"><span class="eyebrow">Describe ${esc(S.teams[t])}</span>${timerEl()}</div>${tabuCard(g.card)}
+        <div class="row center"><button class="btn ok big" data-a="tabuM" data-v="ok">Acierto</button><button class="btn bad big" data-a="tabuM" data-v="tabu">¡Tabú!</button><button class="btn big alt" data-a="tabuM" data-v="pass">Pasar</button></div></div>`;
+    }
+    if (g.ph === 'turnEnd') return `<div class="stagebox">${teams}<h3>Fin del turno de ${esc(S.teams[t])}</h3><div class="chips">${g.got.map(x => `<span class="chip" style="${x.r === 'ok' ? 'border-color:var(--ok)' : x.r === 'tabu' ? 'border-color:var(--bad);text-decoration:line-through' : 'opacity:.6'}">${esc(x.w)}</span>`).join('') || '<span class="muted">No salió ninguna.</span>'}</div>
+      <div class="row"><button class="btn big" data-a="g" data-f="nextTurn">${g.turn + 1 < g.total ? 'Siguiente turno' : 'Ver resultado'}</button></div></div>`;
+    const w = g.sc[0] === g.sc[1] ? -1 : g.sc[0] > g.sc[1] ? 0 : 1;
+    return `<div class="stagebox" style="text-align:center;align-items:center">${teams}<span class="eyebrow">Fin de Tabú</span><div class="big-word">${w < 0 ? 'Empate' : esc(S.teams[w])}</div>${host && w >= 0 ? '<p class="small muted">+100 para cada integrante del equipo ganador.</p>' : ''}<div class="row center"><button class="btn big" data-a="g" data-f="start">Otra partida</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+  },
+};
+
+// ---------- AHORCADO ----------
+const hangSVG = err => {
+  const parts = [`<circle cx="150" cy="70" r="16"/>`, `<line x1="150" y1="86" x2="150" y2="135"/>`, `<line x1="150" y1="98" x2="128" y2="118"/>`, `<line x1="150" y1="98" x2="172" y2="118"/>`, `<line x1="150" y1="135" x2="132" y2="165"/>`, `<line x1="150" y1="135" x2="168" y2="165"/>`];
+  return `<svg viewBox="0 0 220 200" class="hang" role="img" aria-label="Ahorcado, ${err} de 6 errores"><g stroke="var(--muted)" stroke-width="5" stroke-linecap="round" fill="none"><line x1="30" y1="190" x2="120" y2="190"/><line x1="60" y1="190" x2="60" y2="20"/><line x1="60" y1="20" x2="150" y2="20"/><line x1="150" y1="20" x2="150" y2="54"/></g><g stroke="var(--coral)" stroke-width="5" stroke-linecap="round" fill="none">${parts.slice(0, err).join('')}</g></svg>`;
+};
+const hangMask = (word, used) => String(word).split('').map(ch => { const n = norm(ch); return /^[a-z0-9]$/.test(n) ? (used.includes(n) ? ch.toUpperCase() : '_') : ch; }).join('');
+const KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+GAMES.hang = {
+  start() { newGame('hang', { ph: 'setup', src: 'game', wi: -1, ti: 0, si: -1 }); pub({ t: 'wait', msg: 'Preparando el Ahorcado' }); render(); },
+  begin() { const g = S.g; if (!g.list) g.list = shuffle(AHORCADO.filter(x => S.adult || !x[2])); g.wi++; this.round(); },
+  round() {
+    const g = S.g; nextKey();
+    g.players = roster().map(p => ({ id: p.id, name: p.name, color: p.color }));
+    g.used = []; g.err = 0; g.msg = ''; g.winner = null; g.mv = 0;
+    if (g.src === 'player' && S.mode === 'host') { g.si++; g.setter = g.players[g.si % g.players.length]; g.ph = 'wait'; g.cat = 'Palabra de ' + g.setter.name; g.word = null; }
+    else { const x = g.list[g.wi % g.list.length]; g.cat = x[0]; g.word = x[1]; g.setter = null; g.ph = 'play'; }
+    g.order = g.players.filter(p => !g.setter || p.id !== g.setter.id);
+    g.ti = g.order.length ? g.ti % g.order.length : 0;
+    this.pub(); render();
+  },
+  turnP() { const g = S.g; return g.order[g.ti % Math.max(1, g.order.length)]; },
+  hidden() { return hangMask(S.g.word, S.g.used).split('').filter(c => c === '_').length; },
+  letter(L, p) {
+    const g = S.g; if (g.ph !== 'play') return; const l = norm(L); if (!/^[a-z]$/.test(l) || g.used.includes(l)) return;
+    g.used.push(l); g.mv++;
+    const occ = norm(g.word).split('').filter(c => c === l).length;
+    if (occ) { addPts(p.name, 10 * occ); g.msg = `${p.name}: ¡hay ${occ} ${L.toUpperCase()}! +${10 * occ}`; if (!this.hidden()) return this.win(p, 0); }
+    else { g.err++; g.msg = `${p.name}: no hay ${L.toUpperCase()}`; g.ti++; if (g.err >= 6) return this.lose(); }
+    this.pub(); render();
+  },
+  solve(text, p) {
+    const g = S.g; if (g.ph !== 'play' || !String(text).trim()) return; g.mv++;
+    if (norm(text) === norm(g.word)) { const bonus = 50 + 20 * this.hidden(); return this.win(p, bonus); }
+    g.err++; g.msg = `${p.name} intentó "${String(text).slice(0, 30)}" y no era`; g.ti++; if (g.err >= 6) return this.lose();
+    this.pub(); render();
+  },
+  win(p, bonus) { const g = S.g; if (bonus) addPts(p.name, bonus); g.winner = p.name; g.bonus = bonus; g.ph = 'res'; g.ti++; this.pub(); render(); },
+  lose() { const g = S.g; g.ph = 'res'; g.winner = null; if (g.setter) addPts(g.setter.name, 150); this.pub(); render(); },
+  pub() {
+    const g = S.g; if (!g.players) return; const tp = this.turnP();
+    pub({ t: 'hang', k: g.key, ph: g.ph, cat: g.cat, mask: g.word ? hangMask(g.word, g.used) : '', used: g.used, err: g.err, turn: tp ? tp.id : null, tn: tp ? tp.name : '', setter: g.setter ? g.setter.id : null, sn: g.setter ? g.setter.name : '', mv: g.mv, msg: g.msg, word: g.ph === 'res' ? g.word : undefined, win: g.winner });
+  },
+  onAnswer(p, a) {
+    const g = S.g; const v = a.v; if (!v) return;
+    if (v.op === 'set' && g.ph === 'wait' && g.setter && p.id === g.setter.id) {
+      const w = String(v.w || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+      if (norm(w).replace(/[^a-z]/g, '').length < 3) return;
+      g.word = w; g.ph = 'play'; this.pub(); render(); return;
+    }
+    const tp = this.turnP(); if (g.ph !== 'play' || !tp || p.id !== tp.id || v.mv !== g.mv) return;
+    if (v.op === 'letter') this.letter(String(v.l || ''), p);
+    if (v.op === 'solve') this.solve(String(v.t || ''), p);
+  },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    if (g.ph === 'setup') return `<div class="stagebox"><p class="muted">Adivinen la palabra letra por letra. Por turnos, cada jugador elige una letra: si está, suma 10 puntos por cada vez que aparece y sigue jugando; si no está, se dibuja una parte del monito y pasa el turno. También se puede arriesgar la palabra completa (bonus de 50 + 20 por letra oculta). Con 6 errores, nadie gana.</p>
+      ${host ? `<div class="stack"><span class="eyebrow">¿Quién pone la palabra?</span><div class="chips"><button class="chip ${g.src === 'game' ? 'sel' : ''}" data-a="hangSrc" data-v="game">El juego (por categorías)</button><button class="chip ${g.src === 'player' ? 'sel' : ''}" data-a="hangSrc" data-v="player">Un jugador por turno, desde su celular</button></div><span class="small muted">Si la palabra la pone un jugador y nadie la adivina, gana 150.</span></div>` : ''}
+      <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    if (g.ph === 'wait') return `<div class="stagebox" style="text-align:center;align-items:center"><h2>${esc(g.setter.name)} está eligiendo la palabra</h2><p class="muted">La escribe en secreto en su celular.</p><button class="btn alt" data-a="g" data-f="round">Saltar a otro jugador</button></div>`;
+    const tp = this.turnP();
+    const mask = hangMask(g.word, g.ph === 'res' ? KEYS.map(k => k.toLowerCase()) : g.used);
+    const board = `<div class="rosco-wrap">${hangSVG(g.err)}<div class="stack" style="align-items:center;text-align:center"><span class="eyebrow">${esc(g.cat)}</span><div class="hmask">${esc(mask)}</div><p class="small muted">Errores: ${g.err} de 6 · Usadas: ${g.used.map(l => l.toUpperCase()).join(' ') || '—'}</p></div></div>`;
+    if (g.ph === 'res') return `<div class="stagebox" style="text-align:center">${board}<h2 style="color:${g.winner ? 'var(--ok)' : 'var(--coral)'}">${g.winner ? `¡${esc(g.winner)} la adivinó!${g.bonus ? ` +${g.bonus}` : ''}` : 'Se completó el monito'}</h2>${!g.winner && g.setter ? `<p>${esc(g.setter.name)} gana 150 por su palabra.</p>` : ''}
+      <div class="row center"><button class="btn big" data-a="g" data-f="begin">Otra palabra</button></div></div>`;
+    return `<div class="stagebox">${board}
+      <div class="spread"><span>Turno de <b style="color:var(--sun)">${esc(tp ? tp.name : '?')}</b></span>${g.msg ? `<span class="muted">${esc(g.msg)}</span>` : ''}</div>
+      ${host ? `<p class="muted small">${esc(tp ? tp.name : '')} elige la letra en su celular.</p><div class="row"><button class="btn alt" data-a="hangSkip">Saltar turno</button></div>`
+        : `<div class="keys">${KEYS.map(k => `<button data-a="hangL" data-v="${k}" ${g.used.includes(k.toLowerCase()) ? 'disabled' : ''}>${k}</button>`).join('')}</div>
+          <div class="row"><input id="hs" placeholder="Arriesgar la palabra completa" data-enter="hangSolve" style="flex:1" autocomplete="off"><button class="btn" data-a="hangSolve">Arriesgar</button></div>`}</div>`;
+  },
+};
+
+// ---------- CHAMULLO (tipo Fibbage) ----------
+GAMES.cham = {
+  start() { if (S.mode !== 'host') { newGame('cham', { ph: 'nolocal' }); pub({ t: 'wait' }); render(); return; } newGame('cham', { ph: 'setup', n: 6 }); pub({ t: 'wait', msg: 'Preparando Chamullo' }); render(); },
+  begin() { const g = S.g; if (hostPlayers().length < 2) { g.warn = 'Se necesitan al menos 2 jugadores conectados.'; render(); return; } g.warn = ''; g.list = shuffle(CHAMULLO).slice(0, g.n); g.i = 0; this.ask(); },
+  ask() { const g = S.g; nextKey(); g.f = g.list[g.i]; g.lies = {}; g.rej = {}; g.votes = {}; g.ph = 'write'; startTimer(60, () => this.toVote()); this.pub(); render(); },
+  truth(t) { const f = S.g.f; return matches(t, [f[1], ...f[2]]); },
+  onAnswer(p, a) {
+    const g = S.g, v = a.v; if (!v) return;
+    if (g.ph === 'write' && v.op === 'lie') {
+      const t = String(v.t || '').trim().replace(/\s+/g, ' ').slice(0, 60); if (!t) return;
+      if (this.truth(t)) { g.rej[p.id] = 1; delete g.lies[p.id]; } else { delete g.rej[p.id]; g.lies[p.id] = { t, name: p.name }; }
+      if (hostPlayers().every(x => g.lies[x.id])) return this.toVote();
+      this.pub(); render();
+    } else if (g.ph === 'vote' && v.op === 'vote') {
+      const o = g.opts.find(x => x.id === v.o); if (!o || o.au.includes(p.id)) return;
+      g.votes[p.id] = o.id; if (hostPlayers().every(x => g.votes[x.id])) return this.reveal();
+      this.pub(); render();
+    }
+  },
+  toVote() {
+    const g = S.g; if (g.ph !== 'write') return; stopTimer();
+    const opts = [{ t: g.f[1], au: [], truth: true }];
+    Object.entries(g.lies).forEach(([id, l]) => { const ex = opts.find(o => norm(o.t) === norm(l.t)); if (ex && !ex.truth) ex.au.push(id); else if (!ex) opts.push({ t: l.t, au: [id] }); });
+    if (opts.length < 4 && !opts.some(o => norm(o.t) === norm(g.f[3]))) opts.push({ t: g.f[3], au: [], house: true });
+    g.opts = shuffle(opts).map((o, i) => ({ ...o, id: 'o' + i }));
+    g.ph = 'vote'; startTimer(40, () => this.reveal()); this.pub(); render();
+  },
+  reveal() {
+    const g = S.g; if (g.ph !== 'vote') return; stopTimer(); g.pts = {};
+    const nameOf = id => (hostPlayers().find(p => p.id === id) || {}).name || (g.lies[id] || {}).name;
+    Object.entries(g.votes).forEach(([vid, oid]) => {
+      const o = g.opts.find(x => x.id === oid); if (!o) return;
+      if (o.truth) { g.pts[vid] = (g.pts[vid] || 0) + 200; }
+      else o.au.forEach(aid => { if (aid !== vid) g.pts[aid] = (g.pts[aid] || 0) + 100; });
+    });
+    Object.entries(g.pts).forEach(([id, n]) => { const nm = nameOf(id); if (nm) addPts(nm, n); });
+    g.ph = 'res'; this.pub(); render();
+  },
+  next() { const g = S.g; g.i++; if (g.i >= g.list.length) { g.ph = 'end'; pub({ t: 'wait', msg: 'Terminó Chamullo' }); render(); } else this.ask(); },
+  pub() {
+    const g = S.g; if (!g.f) return; const q = g.f[0];
+    const own = {}; (g.opts || []).forEach(o => o.au.forEach(id => own[id] = o.id));
+    pub({ t: 'cham', k: g.key, ph: g.ph, q, rej: Object.keys(g.rej || {}), wrote: Object.keys(g.lies || {}), opts: g.ph === 'vote' ? g.opts.map(o => ({ id: o.id, t: o.t })) : undefined, own, truth: g.ph === 'res' ? g.f[1] : undefined, pts: g.ph === 'res' ? g.pts : undefined, dur: g.ph === 'write' || g.ph === 'vote' ? tLeft() : 0 });
+  },
+  view() {
+    const g = S.g;
+    if (g.ph === 'nolocal') return noLocalView('En Chamullo cada uno escribe una respuesta falsa en secreto y después todos votan desde su celular.');
+    if (g.ph === 'setup') return `<div class="stagebox"><p class="muted">Aparece un dato curioso real con un espacio en blanco. Cada uno escribe en su celular una respuesta falsa pero creíble. Después se muestran todas mezcladas con la verdadera y cada uno vota cuál cree que es la real. Encontrar la verdad: +200 · Por cada persona que cae en tu chamullo: +100.</p>
+      <div class="stack"><span class="eyebrow">Preguntas</span><div class="chips">${[4, 6, 8, 10].map(n => `<button class="chip ${g.n === n ? 'sel' : ''}" data-a="chamN" data-v="${n}">${n}</button>`).join('')}</div></div>
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}<div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    if (g.ph === 'end') return endView('Fin de Chamullo');
+    const r = hostPlayers(); const nm = id => (r.find(p => p.id === id) || {}).name || (g.lies[id] || {}).name || '?';
+    const q = `<p class="q" style="text-align:center">${esc(g.f[0]).replace('___', '<span class="blank">_____</span>')}</p>`;
+    if (g.ph === 'write') return `<div class="stagebox" style="text-align:center"><span class="eyebrow">Pregunta ${g.i + 1} de ${g.list.length} · inventen una respuesta falsa</span>${q}<div class="row center">${timerEl()}<span class="muted">${Object.keys(g.lies).length} de ${r.length} escribieron</span></div><div class="row center"><button class="btn alt" data-a="g" data-f="toVote">Pasar a votar</button></div></div>`;
+    if (g.ph === 'vote') return `<div class="stagebox" style="text-align:center"><span class="eyebrow">¿Cuál es la verdad? Voten en el celular</span>${q}<div class="list" style="text-align:left">${g.opts.map(o => `<div class="li" style="font-size:1.2rem">${esc(o.t)}</div>`).join('')}</div><div class="row center">${timerEl()}<span class="muted">${Object.keys(g.votes).length} votaron</span><button class="btn alt" data-a="g" data-f="reveal">Revelar</button></div></div>`;
+    const voters = oid => Object.entries(g.votes).filter(([, o]) => o === oid).map(([id]) => nm(id));
+    return `<div class="stagebox">${q}<div class="list">${g.opts.slice().sort((a, b) => (b.truth ? 1 : 0) - (a.truth ? 1 : 0)).map(o => `<div class="li" style="flex-wrap:wrap;${o.truth ? 'background:color-mix(in srgb,var(--ok) 30%,var(--stage-3))' : ''}"><span style="font-size:1.15rem">${esc(o.t)}</span><span class="pill" style="margin-left:auto">${o.truth ? 'VERDAD' : o.house ? 'Chamullo de la casa' : 'Chamullo de ' + o.au.map(nm).map(esc).join(' y ')}</span><span class="small muted" style="flex-basis:100%">${voters(o.id).length ? 'Cayeron: ' + voters(o.id).map(esc).join(', ') : 'Nadie votó por esta'}</span></div>`).join('')}</div>
+      <div class="list">${Object.entries(g.pts).sort((a, b) => b[1] - a[1]).map(([id, n]) => `<div class="li">${esc(nm(id))}<b>+${n}</b></div>`).join('')}</div>
+      <div class="row"><button class="btn big" data-a="g" data-f="next">${g.i + 1 < g.list.length ? 'Siguiente pregunta' : 'Ver resultado'}</button></div></div>`;
+  },
+};
+
+// ---------- TELÉFONO DESCOMPUESTO ----------
+function simplifyStrokes(arr) {
+  return arr.map(s => { const p = s.p || []; if (p.length <= 4) return { c: s.c, w: s.w, p: p.slice() }; const out = [p[0], p[1]]; let lx = p[0], ly = p[1];
+    for (let i = 2; i < p.length; i += 2) { const x = p[i], y = p[i + 1]; if (Math.hypot(x - lx, y - ly) >= 8 || i === p.length - 2) { out.push(x, y); lx = x; ly = y; } } return { c: s.c, w: s.w, p: out }; });
+}
+function telIngest(peer, dr) {
+  const g = S.g; if (!g.drawBuf) return; const b = g.drawBuf[peer] || (g.drawBuf[peer] = { clr: 0, m: new Map() });
+  if (dr.clr !== b.clr) { b.m.clear(); b.clr = dr.clr; }
+  if (Array.isArray(dr.s)) for (const s of dr.s) if (s && typeof s.i === 'number' && Array.isArray(s.p)) b.m.set(s.i, { c: +s.c || 0, w: +s.w || 1, p: s.p.slice(0, 400).map(Number) });
+}
+GAMES.tel = {
+  start() { if (S.mode !== 'host') { newGame('tel', { ph: 'nolocal' }); pub({ t: 'wait' }); render(); return; } newGame('tel', { ph: 'setup', tw: 45, td: 80 }); pub({ t: 'wait', msg: 'Preparando Teléfono descompuesto' }); render(); },
+  begin() {
+    const g = S.g; const r = hostPlayers();
+    if (r.length < 3) { g.warn = 'Se necesitan al menos 3 jugadores conectados.'; render(); return; }
+    g.warn = ''; g.pl = shuffle(r).slice(0, 10); g.N = g.pl.length; g.chains = g.pl.map(() => []); g.s = 0; this.step();
+  },
+  type(s) { return s % 2 === 0 ? 'text' : 'draw'; },
+  chainOf(i, s) { const N = S.g.N; return ((i - s) % N + N) % N; },
+  step() {
+    const g = S.g; nextKey(); g.ph = 'step'; g.done = {}; g.drawBuf = {}; g.dmSent = {};
+    startTimer(this.type(g.s) === 'text' ? g.tw : g.td, () => this.collect());
+    this.pub(); render();
+    if (g.s > 0) g.pl.forEach((_, i) => this.sendTask(i));
+  },
+  task(i) { const g = S.g; const prev = g.chains[this.chainOf(i, g.s)][g.s - 1]; return { k: g.key, prompt: prev ? (prev.type === 'text' ? { text: prev.text } : { strokes: prev.strokes }) : null }; },
+  sendTask(i) { const g = S.g; const p = g.pl[i]; g.dmSent[p.id] = Date.now(); dmSend(p.id, this.task(i)); },
+  resend(peer) { const g = S.g; if (g.ph !== 'step' || g.s === 0) return; const i = g.pl.findIndex(p => p.id === peer); if (i < 0 || Date.now() - (g.dmSent[peer] || 0) < 3000) return; this.sendTask(i); },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'step' || !a.v || a.v.op !== 'done' || !g.pl.some(x => x.id === p.id)) return;
+    g.done[p.id] = { text: String(a.v.t || '').trim().replace(/\s+/g, ' ').slice(0, 90) };
+    this.pub(); render();
+    if (g.pl.every(x => g.done[x.id])) { const key = g.key; setTimeout(() => { if (S.g === g && g.key === key) this.collect(); }, 600); }
+  },
+  collect() {
+    const g = S.g; if (g.ph !== 'step') return; stopTimer();
+    const ty = this.type(g.s);
+    g.pl.forEach((p, i) => {
+      const c = this.chainOf(i, g.s);
+      if (ty === 'text') g.chains[c][g.s] = { type: 'text', by: p.name, text: (g.done[p.id] && g.done[p.id].text) || '(no escribió nada)' };
+      else { const b = g.drawBuf[p.id]; const arr = b ? [...b.m.entries()].sort((x, y) => x[0] - y[0]).map(x => x[1]) : []; g.chains[c][g.s] = { type: 'draw', by: p.name, strokes: simplifyStrokes(arr) }; }
+    });
+    g.s++;
+    if (g.s >= g.N) { g.ph = 'show'; g.sc = 0; g.se = 0; pub({ t: 'wait', msg: '¡Miren la pantalla! Se revelan las cadenas.' }); render(); }
+    else this.step();
+  },
+  showNext() { const g = S.g; const len = g.chains[g.sc].length; if (g.se < len - 1) g.se++; else if (g.sc < g.N - 1) { g.sc++; g.se = 0; } else g.ph = 'fin'; render(); },
+  pub() { const g = S.g; pub({ t: 'tel', k: g.key, ph: 'step', s: g.s, of: g.N, ty: this.type(g.s), pl: g.pl.map(p => p.id), done: Object.keys(g.done), dur: tLeft() }); },
+  view() {
+    const g = S.g;
+    if (g.ph === 'nolocal') return noLocalView('En Teléfono descompuesto cada uno escribe y dibuja en secreto en su celular.');
+    if (g.ph === 'setup') return `<div class="stagebox"><p class="muted">Cada jugador escribe una frase. Esa frase pasa al siguiente, que la dibuja; el siguiente ve solo el dibujo y escribe qué es; el que sigue lo dibuja, y así hasta que cada cadena da la vuelta. Al final se revelan las cadenas en la tele, paso a paso. No suma puntos: es para reírse.</p>
+      <div class="stack"><span class="eyebrow">Segundos para escribir</span><div class="chips">${[30, 45, 60].map(n => `<button class="chip ${g.tw === n ? 'sel' : ''}" data-a="telW" data-v="${n}">${n}</button>`).join('')}</div></div>
+      <div class="stack"><span class="eyebrow">Segundos para dibujar</span><div class="chips">${[60, 80, 120].map(n => `<button class="chip ${g.td === n ? 'sel' : ''}" data-a="telD" data-v="${n}">${n}</button>`).join('')}</div></div>
+      ${S.dmErr ? `<p class="note">Para este juego, la pantalla principal tiene que abrirla quien puede editar el artefacto en claude.ai.</p>` : ''}
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}<div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    if (g.ph === 'step') {
+      const ty = this.type(g.s);
+      return `<div class="stagebox" style="text-align:center"><span class="eyebrow">Paso ${g.s + 1} de ${g.N}</span><h2>${g.s === 0 ? 'Escriban una frase para empezar' : ty === 'draw' ? 'Dibujen la frase que les llegó' : 'Describan el dibujo que les llegó'}</h2>
+        <div class="row center">${timerEl()}</div><div class="chips" style="justify-content:center">${g.pl.map(p => `<span class="chip ${g.done[p.id] ? 'sel' : ''}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')}</div>
+        ${S.dmErr ? `<p class="note">Los celulares no están recibiendo las tareas: la pantalla principal tiene que abrirla quien puede editar el artefacto.</p>` : ''}
+        <div class="row center"><button class="btn alt" data-a="g" data-f="collect">Pasar al siguiente paso</button></div></div>`;
+    }
+    if (g.ph === 'fin') return `<div class="stagebox" style="text-align:center;align-items:center"><h2>¡Eso fue todo!</h2><div class="row center"><button class="btn big" data-a="g" data-f="start">Jugar otra vez</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+    const ch = g.chains[g.sc];
+    AFTER.push(() => ch.forEach((e, j) => { if (e.type === 'draw' && j <= g.se) { const cv = document.getElementById('tc' + j); if (cv) drawStrokes(cv.getContext('2d'), e.strokes, cv.width); } }));
+    return `<div class="stagebox"><div class="spread"><span class="eyebrow">Cadena ${g.sc + 1} de ${g.N} · empezó ${esc(ch[0].by)}</span><span class="muted small">${g.se + 1} / ${ch.length}</span></div>
+      <div class="stack">${ch.slice(0, g.se + 1).map((e, j) => e.type === 'text'
+        ? `<div class="bubble"><span class="small muted">${esc(e.by)} ${j === 0 ? 'escribió' : 'dijo que era'}</span><p class="q" style="font-size:1.4rem">${esc(e.text)}</p></div>`
+        : `<div class="stack" style="align-items:center"><span class="small muted">${esc(e.by)} dibujó</span><div class="canvas-box" style="max-width:380px"><canvas id="tc${j}" width="600" height="600"></canvas></div></div>`).join('')}</div>
+      <div class="row center"><button class="btn big" data-a="g" data-f="showNext">${g.se < ch.length - 1 ? 'Mostrar siguiente' : g.sc < g.N - 1 ? 'Siguiente cadena' : 'Terminar'}</button></div></div>`;
+  },
+};
+
 // ---------- FERIA DE CACHUREOS (tipo Pit) ----------
 function ding() { try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const ac = ding.ac || (ding.ac = new C()); [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), gn = ac.createGain(); o.frequency.value = f; o.type = 'triangle'; gn.gain.setValueAtTime(0.0001, ac.currentTime + i * .12); gn.gain.exponentialRampToValueAtTime(0.3, ac.currentTime + i * .12 + .02); gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + i * .12 + .6); o.connect(gn).connect(ac.destination); o.start(ac.currentTime + i * .12); o.stop(ac.currentTime + i * .12 + .65); }); } catch (e) {} }
 const feriaCard = (t, extra = '') => `<span class="fcard" style="background:${FERIA[t][2]}">${esc(FERIA[t][0])}<small>${FERIA[t][1]} pts</small>${extra}</span>`;
@@ -1643,7 +2110,7 @@ const ACT = {
     try { await joinRoom(code, 'phone'); } catch (e) { S.err = netMsg(e); render(); document.getElementById('jc').value = code; return; }
     S.pcolor = COLORS[Math.floor(Math.random() * COLORS.length)];
     S.mode = 'phone'; S.view = 'phone'; S.err = '';
-    NR.onPeers(onPhonePeers);
+    NR.onPeers(onPhonePeers); dmListen();
     NR.presence({ role: 'player', name, color: S.pcolor }).catch(() => {});
     render();
   },
@@ -1677,6 +2144,26 @@ const ACT = {
   feudGuess() { const el = document.getElementById('fa'); const v = el ? el.value : ''; if (el) el.value = ''; GAMES.feud.guess(v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
   feudStrike() { GAMES.feud.strike(''); },
   feudTile(d) { GAMES.feud.tile(+d.i); },
+  // tabú
+  tabuR(d) { S.g.rounds = +d.v; render(); }, tabuS(d) { S.g.secs = +d.v; render(); },
+  tabuM(d) { GAMES.tabu.mark(d.v); },
+  tabuP(d) { if (P.st) opSend({ op: d.v, ci: P.st.ci }); try { navigator.vibrate && navigator.vibrate(50); } catch (e) {} },
+  // ahorcado
+  hangSrc(d) { S.g.src = d.v; render(); },
+  hangL(d) { const p = GAMES.hang.turnP(); if (p) GAMES.hang.letter(d.v, p); },
+  hangSolve() { const el = document.getElementById('hs'); const v = el ? el.value : ''; const p = GAMES.hang.turnP(); if (p && v.trim()) { el.value = ''; GAMES.hang.solve(v, p); } },
+  hangSkip() { const g = S.g; g.ti++; g.mv++; g.msg = 'Turno saltado'; GAMES.hang.pub(); render(); },
+  hangSet() { const el = document.getElementById('hw'); const v = (el && el.value || '').trim(); if (v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length < 3) return; opSend({ op: 'set', w: v }); },
+  hangPL(d) { if (P.st) opSend({ op: 'letter', l: d.v, mv: P.st.mv }); },
+  hangPS() { const el = document.getElementById('hps'); const v = (el && el.value || '').trim(); if (v && P.st) { el.value = ''; opSend({ op: 'solve', t: v, mv: P.st.mv }); } },
+  // chamullo
+  chamN(d) { S.g.n = +d.v; render(); },
+  chamLie() { const el = document.getElementById('cl'); const v = (el && el.value || '').trim(); if (!v) return; el.value = ''; opSend({ op: 'lie', t: v }); },
+  chamVote(d) { if (!P.st) return; P.sent[P.st.k] = d.v; opSend({ op: 'vote', o: d.v }); render(); },
+  // teléfono
+  telW(d) { S.g.tw = +d.v; render(); }, telD(d) { S.g.td = +d.v; render(); },
+  telIdea() { const el = document.getElementById('tt'); if (el) { el.value = pick(TEL_IDEAS); el.focus(); } },
+  telDone() { const el = document.getElementById('tt'); const st = P.st; if (!st) return; const t = el ? el.value.trim() : ''; if (st.ty === 'text' && !t) { if (el) el.focus(); return; } opSend({ op: 'done', t }); },
   // basta
   bCat(d) { const g = S.g; const i = g.cats.indexOf(d.v); if (i >= 0) g.cats.splice(i, 1); else if (g.cats.length < 10) g.cats.push(d.v); render(); },
   bBad(d) { GAMES.basta.toggle(d.k); },
