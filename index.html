@@ -44,7 +44,9 @@ p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 input,select{font:inherit;color:var(--ink);background:var(--stage-2);border:2px solid var(--line);border-radius:12px;padding:11px 14px;min-width:0}
-input::placeholder{color:var(--muted)}
+textarea{font:inherit;font-size:.95rem;color:var(--ink);background:var(--stage-2);border:2px solid var(--line);border-radius:12px;padding:11px 14px;width:100%;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
+textarea:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+input::placeholder,textarea::placeholder{color:var(--muted)}
 a{color:var(--sun)}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:999px;font-weight:800;background:var(--sun);color:#2a1600;box-shadow:0 4px 0 #b5801c;transition:transform .08s}
@@ -1259,6 +1261,7 @@ VIEWS.home = () => {
   <div class="panel spread">
     <div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><div><b>Contenido +18</b><div class="small muted">Suma preguntas de carrete y copete. Apágalo si juegan niños.</div></div></div>
   </div>
+  <div class="panel spread"><div><b>Mi pack</b><div class="small muted">Tus propias preguntas, palabras y encuestas para jugar con el grupo.</div></div><button class="btn alt" data-a="pack">Editar mi pack${packCount() ? ' (' + packCount() + ')' : ''}</button></div>
   ${S.err ? `<p class="note">${esc(S.err)}</p>` : ''}`;
 };
 
@@ -1315,7 +1318,7 @@ const GAME_LIST = [
 VIEWS.menu = () => {
   const r = roster();
   return `
-  ${topBar(`${S.mode === 'host' ? `<span class="pill">Sala <b>${esc(S.code)}</b> · ${r.length} jugadores</span>` : ''}<button class="btn alt" data-a="scores">Marcador</button><button class="btn alt" data-a="${S.mode === 'host' ? 'lobby' : 'goLocal'}">Jugadores</button>`)}
+  ${topBar(`${S.mode === 'host' ? `<span class="pill">Sala <b>${esc(S.code)}</b> · ${r.length} jugadores</span>` : ''}<button class="btn alt" data-a="pack">Mi pack${typeof packCount === 'function' && packCount() ? ' (' + packCount() + ')' : ''}</button><button class="btn alt" data-a="scores">Marcador</button><button class="btn alt" data-a="${S.mode === 'host' ? 'lobby' : 'goLocal'}">Jugadores</button>`)}
   <div class="spread"><h2>Elige un juego</h2><div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><b>+18</b></div></div>
   <div class="games">${GAME_LIST.map(g => `<button class="game ${g.c}" data-a="startGame" data-g="${g.id}"><span class="glyph">${g.glyph}</span><h3>${g.name}</h3><p>${g.d}</p><div class="tags">${g.tags.map(t => `<span>${t}</span>`).join('')}</div></button>`).join('')}</div>`;
 };
@@ -2510,7 +2513,7 @@ function feriaSend(v) { if (!NR || !P.st) return; P.gn++; NR.presence({ a: { k: 
 const ACT = {
   goBack() {
     const v = S.view;
-    if (v === 'scores') return ACT.back();
+    if (v === 'scores' || v === 'pack') return ACT.back();
     if (v === 'game') return ACT.menu();
     if (v === 'menu') return S.mode === 'host' ? ACT.lobby() : ACT.goLocal();
     if (v === 'hostLobby' || v === 'phone') return ACT.leave();
@@ -2643,8 +2646,131 @@ document.addEventListener('input', e => {
 try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
 S.booted = true;
 
+// ===================== MI PACK (contenido propio) =====================
+const PACK_LS = 'noche-juegos-pack-v1';
+const BASE_LEN = { TRIVIA: TRIVIA.length, WHO: WHO.length, DRAW: DRAW.length, TABU: TABU.length, AHORCADO: AHORCADO.length, WAVES: WAVES.length, FEUD: FEUD.length, CHAMULLO: CHAMULLO.length, SONGS: SONGS.length, BASTA_CATS: BASTA_CATS.length, TEL_IDEAS: TEL_IDEAS.length };
+const PACK_ARR = { TRIVIA, WHO, DRAW, TABU, AHORCADO, WAVES, FEUD, CHAMULLO, SONGS, BASTA_CATS, TEL_IDEAS };
+const cols = line => line.split(/\t|\|/).map(x => x.trim()).filter((x, i, a) => x !== '' || i < a.length - 1);
+const PACK_DEF = [
+  { k: 'trivia', name: 'Trivia', arr: 'TRIVIA', fmt: 'Pregunta | Respuesta correcta | Incorrecta 1 | Incorrecta 2 | Incorrecta 3 | Categoría (opcional)',
+    ex: '¿Cómo se llama el perro de la Caro? | Toby | Max | Rocky | Firulais | Amigos\n¿En qué año se conocieron Ana y Beto? | 2015 | 2012 | 2017 | 2019',
+    parse(c) { if (c.length < 5) throw 'necesita pregunta, la correcta y 3 incorrectas'; return { c: c[5] || 'Mi pack', q: c[0], o: c.slice(1, 5), a: 0 }; } },
+  { k: 'who', name: '¿Quién es más probable?', arr: 'WHO', fmt: 'Una pregunta por línea', ex: '¿Quién es más probable que llegue tarde al asado del sábado?',
+    parse(c) { return c.join(' '); } },
+  { k: 'imp', name: 'El Impostor', fmt: 'Una palabra por línea (quedan en la categoría "Mi pack")', ex: 'La casa de la playa\nEl paseo de curso\nEl asado de Año Nuevo',
+    parse(c) { return c.join(' '); } },
+  { k: 'draw', name: 'Dibuja y adivina', arr: 'DRAW', fmt: 'Una palabra por línea', ex: 'El auto del Beto\nLa oficina',
+    parse(c) { return c.join(' '); } },
+  { k: 'tabu', name: 'Tabú', arr: 'TABU', fmt: 'Palabra | prohibida 1, prohibida 2, prohibida 3… (de 1 a 5)', ex: 'Viña del Mar | Festival, Playa, Reloj de flores, Ciudad, Costa',
+    parse(c) { const f = c.slice(1).join(',').split(',').map(x => x.trim()).filter(Boolean).slice(0, 5); if (!f.length) throw 'faltan las palabras prohibidas'; return [c[0], f]; } },
+  { k: 'hang', name: 'Ahorcado', arr: 'AHORCADO', fmt: 'Palabra o frase | Categoría (opcional)', ex: 'Pastel de jaiba | Comida de la abuela',
+    parse(c) { if (norm(c[0]).replace(/[^a-z]/g, '').length < 3) throw 'la palabra debe tener al menos 3 letras'; return [c[1] || 'Mi pack', c[0].slice(0, 30)]; } },
+  { k: 'wave', name: 'Onda', arr: 'WAVES', fmt: 'Extremo izquierdo | Extremo derecho', ex: 'Plan fome | Plan legendario',
+    parse(c) { if (c.length < 2) throw 'necesita los dos extremos'; return [c[0], c[1]]; } },
+  { k: 'feud', name: '100 chilenos dijeron', arr: 'FEUD', fmt: 'Pregunta | respuesta:puntos | respuesta:puntos … (de 3 a 8 respuestas; sin puntos se asignan solos)', ex: 'Algo que nunca falta en el asado de la familia | Choripán:35 | Pebre:25 | Discusión política:20 | Tío contando chistes:20',
+    parse(c) { const ans = c.slice(1).map(x => { const m = x.match(/^(.*?)[:(]\s*(\d+)\s*\)?$/); return m ? [m[1].trim(), +m[2]] : [x, 0]; }).filter(x => x[0]);
+      if (ans.length < 3) throw 'necesita al menos 3 respuestas'; ans.splice(8); const auto = [35, 25, 15, 10, 6, 4, 3, 2];
+      ans.forEach((a, i) => { if (!a[1]) a[1] = auto[i]; }); ans.sort((x, y) => y[1] - x[1]); return { q: c[0], a: ans.map(a => [a[0], a[1], []]) }; } },
+  { k: 'cham', name: 'Chamullo', arr: 'CHAMULLO', fmt: 'Dato con ___ donde va la respuesta | Respuesta verdadera | Mentira de la casa (opcional)', ex: 'La primera mascota de la familia fue un ___. | conejo | loro',
+    parse(c) { if (c.length < 2) throw 'necesita el dato y la respuesta'; if (!c[0].includes('___')) throw 'el dato debe tener ___ donde va la respuesta'; return [c[0], c[1], [], c[2] || 'nada']; } },
+  { k: 'song', name: 'Adivina la canción', arr: 'SONGS', fmt: 'Título | Artista | Año', ex: 'Tren al sur | Los Prisioneros | 1990',
+    parse(c) { const y = parseInt(c[2], 10); if (c.length < 3 || !(y >= 1900 && y <= 2100)) throw 'necesita título, artista y un año válido'; return [c[0], c[1], y]; } },
+  { k: 'basta', name: 'Basta (categorías)', arr: 'BASTA_CATS', fmt: 'Una categoría por línea', ex: 'Algo que dice el jefe\nLugar de vacaciones del grupo',
+    parse(c) { return c.join(' ').slice(0, 40); } },
+  { k: 'tel', name: 'Teléfono descompuesto (ideas)', arr: 'TEL_IDEAS', fmt: 'Una frase por línea', ex: 'El Beto ganando el Kino',
+    parse(c) { return c.join(' ').slice(0, 90); } },
+];
+let PACK = {};
+try { PACK = JSON.parse(localStorage.getItem(PACK_LS) || '{}') || {}; } catch (e) { PACK = {}; }
+function packParse(def, text) {
+  const items = [], errs = [];
+  String(text || '').split(/\r?\n/).forEach((line, i) => {
+    if (!line.trim() || line.trim().startsWith('#')) return;
+    try { items.push(def.parse(cols(line))); } catch (e) { errs.push(`Línea ${i + 1}: ${e}`); }
+  });
+  return { items, errs };
+}
+function packApply() {
+  Object.entries(BASE_LEN).forEach(([k, n]) => { PACK_ARR[k].length = n; });
+  delete IMP['Mi pack'];
+  PACK_DEF.forEach(def => {
+    const { items } = packParse(def, PACK[def.k]);
+    if (!items.length) return;
+    if (def.k === 'imp') { if (items.length >= 3) IMP['Mi pack'] = items; }
+    else if (def.k === 'basta') items.forEach(x => { if (!BASTA_CATS.includes(x)) BASTA_CATS.push(x); });
+    else PACK_ARR[def.arr].push(...items);
+  });
+}
+function packCount() { return PACK_DEF.reduce((n, d) => n + packParse(d, PACK[d.k]).items.length, 0); }
+function packSave() { try { localStorage.setItem(PACK_LS, JSON.stringify(PACK)); return true; } catch (e) { return false; } }
+packApply();
+
+VIEWS.pack = () => {
+  const sel = S.packSel || 'trivia';
+  if (sel === 'backup') return `${topBar()}
+    <div class="stagebox"><h2>Mi pack · Respaldo</h2>
+      <p class="muted">Tu pack se guarda solo en este dispositivo y navegador. Copia este texto para respaldarlo o para pasarlo a otro dispositivo; para restaurarlo, pégalo aquí y toca <b>Importar</b>.</p>
+      ${packTabs(sel)}
+      <textarea id="pk-backup" rows="14" spellcheck="false">${esc(packExport())}</textarea>
+      <div class="row"><button class="btn" data-a="packCopy">Copiar</button><button class="btn alt" data-a="packImport">Importar</button></div>
+      ${S.packMsg ? `<p class="note">${esc(S.packMsg)}</p>` : ''}</div>`;
+  const def = PACK_DEF.find(d => d.k === sel);
+  const draft = S.packDraft && S.packDraft[sel] !== undefined ? S.packDraft[sel] : (PACK[sel] || '');
+  return `${topBar()}
+  <div class="stagebox">
+    <div class="spread"><h2>Mi pack</h2><span class="pill">${packCount()} elementos guardados</span></div>
+    <p class="muted">Agrega tus propias preguntas, palabras y encuestas: chistes internos, datos del grupo, lo que quieras. Se mezclan con el contenido del juego (en la Trivia y el Impostor aparecen como categoría "Mi pack"). Puedes pegar filas copiadas desde Excel: las columnas se separan solas.</p>
+    ${packTabs(sel)}
+    <div class="stack">
+      <span class="eyebrow">${esc(def.name)}</span>
+      <p class="small"><b>Formato:</b> ${esc(def.fmt)}. Una por línea; las líneas que empiezan con # se ignoran.</p>
+      <textarea id="pk-${def.k}" rows="10" spellcheck="false" data-in="pack" data-k="${def.k}" placeholder="${esc(def.ex)}">${esc(draft)}</textarea>
+      <div id="pk-status">${packStatus(def, draft)}</div>
+      <div class="row"><button class="btn" data-a="packSave">Guardar</button><button class="btn alt" data-a="packEx">Pegar ejemplo</button><button class="btn bad" data-a="packClear">Borrar esta sección</button></div>
+      ${S.packMsg ? `<p class="note">${esc(S.packMsg)}</p>` : ''}
+    </div>
+  </div>`;
+};
+function packTabs(sel) {
+  return `<div class="chips">${PACK_DEF.map(d => { const n = packParse(d, PACK[d.k]).items.length; return `<button class="chip ${sel === d.k ? 'sel' : ''}" data-a="packSel" data-v="${d.k}">${esc(d.name)}${n ? ` <span class="muted small">${n}</span>` : ''}</button>`; }).join('')}<button class="chip ${sel === 'backup' ? 'sel' : ''}" data-a="packSel" data-v="backup">Respaldo</button></div>`;
+}
+function packStatus(def, text) {
+  const { items, errs } = packParse(def, text);
+  const saved = (PACK[def.k] || '') === (text || '');
+  return `<p class="small"><b style="color:var(--ok)">${items.length} válido${items.length === 1 ? '' : 's'}</b>${errs.length ? ` · <b style="color:var(--bad)">${errs.length} con error</b>` : ''}${saved ? '' : ' · <span style="color:var(--sun)">sin guardar</span>'}${def.k === 'imp' && items.length && items.length < 3 ? ' · el Impostor necesita al menos 3 palabras' : ''}</p>
+    ${errs.length ? `<div class="list">${errs.slice(0, 6).map(e => `<div class="li small">${esc(e)}</div>`).join('')}</div>` : ''}`;
+}
+function packExport() { return PACK_DEF.filter(d => (PACK[d.k] || '').trim()).map(d => `## ${d.k}\n${PACK[d.k].trim()}`).join('\n\n'); }
+Object.assign(ACT, {
+  pack() { S.prevView = S.view; S.view = 'pack'; S.packMsg = ''; S.packDraft = {}; render(); },
+  packSel(d) { S.packSel = d.v; S.packMsg = ''; render(); },
+  packSave() {
+    const k = S.packSel || 'trivia'; const el = document.getElementById('pk-' + k); if (!el) return;
+    PACK[k] = el.value; const ok = packSave(); packApply(); delete S.packDraft[k];
+    S.packMsg = ok ? 'Guardado. Ya está disponible en los juegos.' : 'No se pudo guardar en este navegador (quizás estás en modo incógnito). Funcionará hasta que cierres la página.'; render();
+  },
+  packEx() { const k = S.packSel || 'trivia'; const def = PACK_DEF.find(d => d.k === k); const el = document.getElementById('pk-' + k); if (!el || !def) return; el.value = (el.value.trim() ? el.value.trim() + '\n' : '') + def.ex; S.packDraft[k] = el.value; document.getElementById('pk-status').innerHTML = packStatus(def, el.value); },
+  packClear() {
+    const k = S.packSel || 'trivia';
+    if (!S.packConfirm) { S.packConfirm = true; const b = document.querySelector('[data-a=packClear]'); if (b) b.textContent = 'Toca otra vez para borrar'; setTimeout(() => { S.packConfirm = false; }, 3000); return; }
+    S.packConfirm = false; delete PACK[k]; delete S.packDraft[k]; packSave(); packApply(); S.packMsg = 'Sección borrada.'; render();
+  },
+  packCopy() { const el = document.getElementById('pk-backup'); if (!el) return; const t = el.value; const done = () => { S.packMsg = 'Copiado.'; render(); }; try { navigator.clipboard.writeText(t).then(done, () => { el.select(); S.packMsg = 'Selecciona el texto y cópialo con Ctrl+C.'; }); } catch (e) { el.select(); } },
+  packImport() {
+    const el = document.getElementById('pk-backup'); if (!el) return; const parts = el.value.split(/^##\s*/m).filter(x => x.trim()); let n = 0;
+    parts.forEach(p => { const nl = p.indexOf('\n'); const k = p.slice(0, nl < 0 ? p.length : nl).trim(); if (PACK_DEF.some(d => d.k === k)) { PACK[k] = nl < 0 ? '' : p.slice(nl + 1).trim(); n++; } });
+    if (!n) { S.packMsg = 'No encontré secciones. Cada una debe empezar con "## nombre", por ejemplo "## trivia".'; render(); return; }
+    packSave(); packApply(); S.packMsg = `Importadas ${n} secciones.`; render();
+  },
+});
+document.addEventListener('input', e => {
+  if (!e.target.dataset || e.target.dataset.in !== 'pack') return;
+  const k = e.target.dataset.k; S.packDraft = S.packDraft || {}; S.packDraft[k] = e.target.value;
+  const def = PACK_DEF.find(d => d.k === k); const st = document.getElementById('pk-status'); if (st && def) st.innerHTML = packStatus(def, e.target.value);
+});
+
 // ----- botón atrás del navegador / celular -----
-const HASH = { home: '', localSetup: 'jugadores', hostLobby: 'sala', join: 'unirme', menu: 'menu', game: 'juego', scores: 'marcador', phone: 'celular' };
+const HASH = { pack: 'mi-pack', home: '', localSetup: 'jugadores', hostLobby: 'sala', join: 'unirme', menu: 'menu', game: 'juego', scores: 'marcador', phone: 'celular' };
 function syncHash() { const h = HASH[S.view] || ''; if (location.hash.slice(1) !== h) { try { location.hash = h; } catch (e) {} } }
 window.addEventListener('hashchange', () => {
   const h = location.hash.slice(1); const t = Object.keys(HASH).find(k => HASH[k] === h) || 'home';
@@ -2655,6 +2781,7 @@ window.addEventListener('hashchange', () => {
   if (t === 'menu') return (S.mode === 'local' || S.mode === 'host') ? ACT.menu() : ACT.home();
   if (t === 'join') return S.mode === 'phone' ? ACT.leave() : ACT.goJoin();
   if (t === 'scores') return ACT.scores();
+  if (t === 'pack') return ACT.pack();
   if (t === 'game' && S.g) { S.view = 'game'; return render(); }
   if (t === 'phone' && S.mode === 'phone') { S.view = 'phone'; return render(); }
   syncHash();

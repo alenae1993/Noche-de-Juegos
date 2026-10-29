@@ -52,6 +52,27 @@ Incluye un interruptor de contenido +18 (preguntas de carrete y copete).
 
 Parte del contenido solo aparece con el modo +18 activado.
 
+## Mi pack: tu propio contenido
+
+Desde el menú (o la portada) entra a **Mi pack** para agregar preguntas, palabras y encuestas propias: chistes internos, datos del grupo, lo que quieras. Se mezclan con el contenido del juego; en la Trivia y en El Impostor aparecen como la categoría "Mi pack" (o la categoría que escribas). Una línea por elemento; las columnas se separan con `|` o pegando filas directo desde Excel. El editor marca en vivo cuántas líneas son válidas y cuáles tienen errores.
+
+| Sección | Formato | Ejemplo |
+|---|---|---|
+| Trivia | `Pregunta \| Correcta \| Incorrecta 1 \| Incorrecta 2 \| Incorrecta 3 \| Categoría (opcional)` | `¿Cómo se llama el perro de la Caro? \| Toby \| Max \| Rocky \| Firulais \| Amigos` |
+| ¿Quién es más probable? | Una pregunta por línea | `¿Quién es más probable que llegue tarde al asado del sábado?` |
+| El Impostor | Una palabra por línea (mínimo 3) | `La casa de la playa` |
+| Dibuja y adivina | Una palabra por línea | `El auto del Beto` |
+| Tabú | `Palabra \| prohibida 1, prohibida 2, …` (hasta 5) | `Viña del Mar \| Festival, Playa, Reloj de flores` |
+| Ahorcado | `Palabra o frase \| Categoría (opcional)` | `Pastel de jaiba \| Comida de la abuela` |
+| Onda | `Extremo izquierdo \| Extremo derecho` | `Plan fome \| Plan legendario` |
+| 100 chilenos dijeron | `Pregunta \| respuesta:puntos \| …` (3 a 8; sin puntos se asignan solos) | `Algo del asado familiar \| Choripán:35 \| Pebre:25 \| Tío chistoso` |
+| Chamullo | `Dato con ___ \| Respuesta verdadera \| Mentira de la casa (opcional)` | `La primera mascota de la familia fue un ___. \| conejo` |
+| Adivina la canción | `Título \| Artista \| Año` | `Tren al sur \| Los Prisioneros \| 1990` |
+| Basta | Una categoría por línea | `Algo que dice el jefe` |
+| Teléfono descompuesto | Una frase por línea | `El Beto ganando el Kino` |
+
+El pack se guarda solo en el dispositivo y navegador donde lo escribes (el que hace de pantalla principal). En la pestaña **Respaldo** puedes copiar todo el pack como texto y pegarlo en otro dispositivo con **Importar**.
+
 ## Notas
 
 - Todo el juego es un solo archivo, `index.html`, sin dependencias ni build.
