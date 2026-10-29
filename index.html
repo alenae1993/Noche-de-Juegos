@@ -172,6 +172,12 @@ a{color:var(--sun)}
 input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;background:none}
 .yr{font-family:var(--f-display);font-size:3.4rem;color:var(--sun);text-align:center}
 
+.fcard{display:inline-flex;flex-direction:column;justify-content:space-between;gap:6px;padding:10px 12px;border-radius:12px;color:#1b1033;font-weight:800;min-width:110px;min-height:74px;font-size:.95rem;box-shadow:inset 0 0 0 3px rgba(27,16,51,.15)}
+.fcard small{font-weight:600;opacity:.8}
+.frow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--stage-3);font-weight:700;text-align:left;border:3px solid transparent;width:100%}
+.frow.on{border-color:var(--fc);background:color-mix(in srgb,var(--fc) 25%,var(--stage-3))}
+.frow b{margin-left:auto;font-family:var(--f-display);font-size:1.3rem}
+.fsw{width:26px;height:34px;border-radius:6px;background:var(--fc);flex:none}
 .note{border-left:4px solid var(--sun);padding:8px 12px;background:var(--stage-3);border-radius:0 10px 10px 0;font-size:.92rem}
 @media (max-width:520px){ .teams{grid-template-columns:1fr} .q{font-size:1.3rem} }
 @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
@@ -483,6 +489,14 @@ const SONGS = [
   ['Tití Me Preguntó','Bad Bunny',2022],['Provenza','Karol G',2022],['Bzrp Music Sessions, Vol. 53','Bizarrap y Shakira',2023],
 ];
 
+// Feria de cachureos (mecánica tipo Pit): [nombre, puntos, color]
+const FERIA = [
+  ['Tetera enlozada',100,'#ff6a55'],['Radio a pilas',90,'#ffc23d'],['Disco de vinilo',85,'#27c7b4'],
+  ['Cámara de rollo',80,'#5a83ff'],['Teléfono de disco',75,'#ff4fa3'],['Muñeca de loza',70,'#3ddc84'],
+  ['Reloj cucú',65,'#c58bff'],['Álbum de láminas',60,'#ff9a3d'],['Plancha a carbón',55,'#7fe0ff'],['Casete VHS',50,'#f2f27a'],
+];
+const FERIA_META = 250;
+
 // ===================== utilidades =====================
 const $app = document.getElementById('app');
 const COLORS = ['#ff6a55','#ffc23d','#27c7b4','#5a83ff','#ff4fa3','#3ddc84','#c58bff','#ff9a3d','#7fe0ff','#f2f27a','#ff8fb8','#a6e36b'];
@@ -749,6 +763,7 @@ const GAME_LIST = [
   { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Celulares', 'Un dispositivo'] },
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'feria', name: 'Feria de cachureos', d: 'Todos cambian cartas a gritos al mismo tiempo. Junta 9 iguales y toca la campana.', glyph: '9', c: 'c2', tags: ['Celulares', '3 a 10'] },
   { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Celulares', 'Spotify'] },
 ];
 
@@ -846,6 +861,37 @@ PHONE.draw = st => {
   if (solved) return `<div class="secret"><h2 style="color:var(--ok)">¡Adivinaste!</h2><p class="muted">Era ${esc(st.w)}.</p></div>`;
   return `<div class="spread"><span class="eyebrow">Adivina el dibujo</span>${phoneTimer(st)}</div><p class="muted">Mira la pantalla principal y escribe tu respuesta. Puedes intentar varias veces.</p>
     <div class="row"><input id="gs" placeholder="¿Qué es?" data-enter="pGuess" style="flex:1" autocomplete="off"><button class="btn" data-a="pGuess">Enviar</button></div>`;
+};
+PHONE.feria = st => {
+  const tot = st.tot ? (st.tot[S.pname] || 0) : 0;
+  if (st.ph === 'res' || st.ph === 'end') {
+    const me = st.res && st.res.f === P.me;
+    return `<div class="secret"><span class="eyebrow">${st.ph === 'end' ? 'Fin de la feria' : 'Campana'}</span><h2 style="color:${me ? 'var(--ok)' : 'var(--ink)'}">${me ? '¡Ganaste la ronda!' : esc(st.res.n) + ' tocó la campana'}</h2>${feriaCard(st.res.t, `<b>+${st.res.pts}</b>`)}<p>Tú: <b>${tot}</b> / ${st.meta} pts</p></div>`;
+  }
+  const h = st.h && st.h[P.me];
+  if (!h) return `<div class="secret"><h3>Esta ronda empezó sin ti</h3><p class="muted">Entras en la siguiente.</p></div>`;
+  const sig = h.join(',');
+  if (P.fHand && P.fHand !== sig && P.fKey === st.k) {
+    const prev = P.fHand.split(',').map(Number); const got = h.map((c, t) => c - (prev[t] || 0)).map((d, t) => [d, t]).filter(x => x[0] > 0);
+    if (got.length) P.fMsg = 'Recibiste ' + got.map(([d, t]) => d + ' ' + FERIA[t][0]).join(' y ');
+  }
+  if (P.fKey !== st.k) { P.fMsg = ''; P.fs = null; }
+  P.fHand = sig; P.fKey = st.k;
+  if (P.fs && !(h[P.fs.t] >= P.fs.c)) P.fs = h[P.fs?.t] > 0 ? { t: P.fs.t, c: Math.min(h[P.fs.t], 4) } : null;
+  const mine = (st.of || []).find(o => o.f === P.me);
+  const others = (st.of || []).filter(o => o.f !== P.me);
+  const full = h.indexOf(9);
+  if (full >= 0) return `<div class="stack" style="align-items:center;text-align:center"><span class="eyebrow">¡Tienes 9 iguales!</span>${feriaCard(full)}<button class="buzz" style="background:var(--sun);box-shadow:0 10px 0 #b5801c" data-a="fBell">¡FERIA!</button></div>`;
+  const rows = h.map((c, t) => [c, t]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).map(([c, t]) =>
+    `<button class="frow ${P.fs && P.fs.t === t ? 'on' : ''}" data-a="fSel" data-t="${t}" style="--fc:${FERIA[t][2]}"><span class="fsw"></span><span>${esc(FERIA[t][0])}<small class="muted"> · ${FERIA[t][1]}</small></span><b>×${c}</b></button>`).join('');
+  const qty = P.fs ? Array.from({ length: Math.min(4, h[P.fs.t]) }, (_, i) => i + 1).map(n => `<button class="chip ${P.fs.c === n ? 'sel' : ''}" data-a="fQty" data-c="${n}">${n}</button>`).join('') : '';
+  return `<div class="spread"><span class="eyebrow">Ronda ${st.r} · junta 9 iguales</span><span class="pill">${tot} / ${st.meta}</span></div>
+    ${P.fMsg ? `<p class="note">${esc(P.fMsg)}</p>` : ''}
+    <div class="list">${rows}</div>
+    ${mine ? `<div class="panel stack" style="text-align:center"><h3>Ofreciendo ${mine.c}</h3><p class="muted">Grita "¡${mine.c}!" hasta que alguien ofrezca la misma cantidad.</p><button class="btn alt" data-a="fCancel">Cancelar oferta</button></div>`
+      : P.fs ? `<div class="panel stack"><span class="small muted">¿Cuántas ${esc(FERIA[P.fs.t][0])} ofreces?</span><div class="chips">${qty}</div><button class="btn big" data-a="fOffer">Ofrecer ${P.fs.c}</button></div>`
+      : `<p class="muted small">Toca un cachureo para elegir las cartas que quieres cambiar.</p>`}
+    ${!mine && others.length ? `<div class="stack"><span class="eyebrow">Ofertas de otros</span>${others.map(o => `<div class="li">${esc(o.n)} ofrece <b style="margin-left:4px">${o.c}</b><button class="btn ${P.fs && P.fs.c === o.c ? '' : 'alt'}" style="margin-left:auto" data-a="fAcc" data-to="${esc(o.f)}" ${P.fs && P.fs.c === o.c ? '' : 'disabled'}>Cambiar</button></div>`).join('')}<span class="small muted">Para aceptar, elige la misma cantidad de un cachureo tuyo.</span></div>` : ''}`;
 };
 PHONE.song = st => {
   if (st.ph === 'res') { const pts = st.pts ? st.pts[P.me] : undefined; return `<div class="secret"><span class="eyebrow">Era</span><h2>${esc(st.ans || '')}</h2>${pts ? `<h2 style="color:var(--sun)">+${pts}</h2>` : ''}</div>`; }
@@ -1368,6 +1414,86 @@ GAMES.feud = {
 };
 function showX() { const d = document.createElement('div'); d.className = 'bigx'; d.textContent = '✕'; document.body.appendChild(d); setTimeout(() => d.remove(), 950); }
 
+// ---------- FERIA DE CACHUREOS (tipo Pit) ----------
+function ding() { try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const ac = ding.ac || (ding.ac = new C()); [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), gn = ac.createGain(); o.frequency.value = f; o.type = 'triangle'; gn.gain.setValueAtTime(0.0001, ac.currentTime + i * .12); gn.gain.exponentialRampToValueAtTime(0.3, ac.currentTime + i * .12 + .02); gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + i * .12 + .6); o.connect(gn).connect(ac.destination); o.start(ac.currentTime + i * .12); o.stop(ac.currentTime + i * .12 + .65); }); } catch (e) {} }
+const feriaCard = (t, extra = '') => `<span class="fcard" style="background:${FERIA[t][2]}">${esc(FERIA[t][0])}<small>${FERIA[t][1]} pts</small>${extra}</span>`;
+GAMES.feria = {
+  start() {
+    if (S.mode !== 'host') { newGame('feria', { ph: 'nolocal' }); pub({ t: 'wait' }); render(); return; }
+    newGame('feria', { tot: {}, round: 0 }); this.deal();
+  },
+  deal() {
+    const g = S.g, r = hostPlayers();
+    if (r.length < 3) { g.ph = 'few'; pub({ t: 'wait', msg: 'Faltan jugadores para la Feria' }); render(); return; }
+    nextKey(); g.round++;
+    g.players = r.slice(0, 10); const nT = g.players.length;
+    let tries = 0;
+    do {
+      const deck = shuffle(Array.from({ length: nT }, (_, t) => Array(9).fill(t)).flat());
+      g.hands = {};
+      g.players.forEach((p, i) => { const h = Array(nT).fill(0); deck.slice(i * 9, i * 9 + 9).forEach(t => h[t]++); g.hands[p.id] = h; });
+    } while (Object.values(g.hands).some(h => h.includes(9)) && ++tries < 50);
+    g.offers = []; g.log = []; g.res = null; g.ph = 'play';
+    g.players.forEach(p => { if (!(p.name in g.tot)) g.tot[p.name] = 0; });
+    this.pub(); render();
+  },
+  pub() { const g = S.g; pub({ t: 'feria', k: g.key, ph: g.ph, h: g.hands, of: g.offers.map(o => ({ f: o.f, n: o.n, c: o.c })), res: g.res, tot: g.tot, meta: FERIA_META, r: g.round }); },
+  onAnswer(p, a) {
+    const g = S.g; if (g.ph !== 'play' || !a.v || typeof a.v !== 'object') return;
+    const h = g.hands[p.id]; if (!h) return;
+    const v = a.v, mine = g.offers.find(o => o.f === p.id);
+    if (v.op === 'offer') {
+      const t = Math.floor(+v.t), c = Math.floor(+v.c);
+      if (mine || !(c >= 1 && c <= 4) || !(h[t] >= c)) return;
+      const other = g.offers.find(o => o.f !== p.id && o.c === c);
+      if (other) this.trade(other, { f: p.id, n: p.name, t, c });
+      else g.offers.push({ f: p.id, n: p.name, t, c });
+    } else if (v.op === 'cancel') {
+      g.offers = g.offers.filter(o => o.f !== p.id);
+    } else if (v.op === 'accept') {
+      const t = Math.floor(+v.t); const o = g.offers.find(x => x.f === v.to);
+      if (mine || !o || o.f === p.id || !(h[t] >= o.c)) return;
+      this.trade(o, { f: p.id, n: p.name, t, c: o.c });
+    } else if (v.op === 'bell') {
+      const t = h.indexOf(9); if (t < 0) return;
+      const pts = FERIA[t][1];
+      g.tot[p.name] = (g.tot[p.name] || 0) + pts; addPts(p.name, pts);
+      g.res = { f: p.id, n: p.name, t, pts }; g.offers = [];
+      g.ph = g.tot[p.name] >= FERIA_META ? 'end' : 'res'; ding();
+    } else return;
+    this.pub(); render();
+  },
+  trade(o, b) {
+    const g = S.g, ha = g.hands[o.f], hb = g.hands[b.f];
+    g.offers = g.offers.filter(x => x !== o && x.f !== b.f);
+    if (!ha || !hb || ha[o.t] < o.c || hb[b.t] < b.c) return;
+    ha[o.t] -= o.c; hb[b.t] -= b.c; ha[b.t] += b.c; hb[o.t] += o.c;
+    g.log.unshift(`${o.n} y ${b.n} cambiaron ${o.c} carta${o.c > 1 ? 's' : ''}`); g.log = g.log.slice(0, 6);
+  },
+  view() {
+    const g = S.g;
+    if (g.ph === 'nolocal') return `<div class="stagebox" style="text-align:center;align-items:center"><h2>Este juego necesita sala</h2><p class="muted" style="max-width:52ch">En la Feria cada uno esconde su mano y cambia cartas al mismo tiempo, así que se juega con celulares. Vuelve al inicio y toca <b>Crear sala</b>.</p><button class="btn big" data-a="leave">Ir al inicio</button></div>`;
+    if (g.ph === 'few') return `<div class="stagebox" style="text-align:center;align-items:center"><h2>Faltan jugadores</h2><p class="muted">La Feria se juega de 3 a 10 personas. Hay ${hostPlayers().length} conectadas.</p><button class="btn big" data-a="g" data-f="deal">Reintentar</button></div>`;
+    const standings = `<div class="list">${Object.entries(g.tot).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<div class="stack" style="gap:4px"><div class="spread"><b>${esc(n)}</b><span>${v} / ${FERIA_META}</span></div><div class="bar" style="width:${Math.max(3, Math.min(100, v / FERIA_META * 100))}%"></div></div>`).join('')}</div>`;
+    if (g.ph === 'res' || g.ph === 'end') return `<div class="stagebox" style="align-items:center;text-align:center">
+      <span class="eyebrow">${g.ph === 'end' ? 'Fin de la feria' : '¡Campana!'}</span>
+      <div class="big-word">${esc(g.res.n)}</div>
+      <p style="font-size:1.2rem">${g.ph === 'end' ? `gana la feria con ${g.tot[g.res.n]} puntos` : `juntó 9 cartas de`}</p>
+      ${g.ph === 'end' ? '' : `<div class="row center">${feriaCard(g.res.t, `<b>+${g.res.pts}</b>`)}</div>`}
+      <div style="width:100%;max-width:520px">${standings}</div>
+      ${g.ph === 'end' ? `<button class="btn big" data-a="g" data-f="start">Jugar de nuevo</button>` : `<button class="btn big" data-a="g" data-f="deal">Siguiente ronda</button>`}</div>`;
+    return `<div class="stagebox">
+      <div class="spread"><span class="pill">Ronda ${g.round} · gana el primero en llegar a ${FERIA_META}</span><span class="muted small">${g.players.length} tipos en juego</span></div>
+      <p class="q" style="text-align:center">¡Griten cuántas cartas cambian!<br><span class="muted" style="font-size:.6em">En el celular: elige cartas iguales, ofrécelas y cambia con quien ofrezca la misma cantidad.</span></p>
+      <div class="rosco-wrap">
+        <div class="stack"><span class="eyebrow">Ofertas abiertas</span><div class="chips">${g.offers.map(o => `<span class="chip" style="font-size:1.3rem"><b>${esc(o.n)}</b> · ${o.c}</span>`).join('') || '<span class="muted">Nadie está ofreciendo ahora.</span>'}</div>
+          <span class="eyebrow">Últimos cambios</span><div class="list">${g.log.map(l => `<div class="li">${esc(l)}</div>`).join('') || '<p class="muted">Todavía no hay cambios.</p>'}</div></div>
+        <div class="stack"><span class="eyebrow">Puntaje</span>${standings}<div class="row" style="flex-wrap:wrap;gap:6px">${g.players.map((p, i) => feriaCard(i)).join('')}</div></div>
+      </div></div>`;
+  },
+};
+function feriaSend(v) { if (!NR || !P.st) return; P.gn++; NR.presence({ a: { k: P.st.k, v, s: P.gn } }).catch(() => {}); }
+
 // ===================== acciones =====================
 const ACT = {
   goBack() {
@@ -1440,6 +1566,13 @@ const ACT = {
   feudGuess() { const el = document.getElementById('fa'); const v = el ? el.value : ''; if (el) el.value = ''; GAMES.feud.guess(v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
   feudStrike() { GAMES.feud.strike(''); },
   feudTile(d) { GAMES.feud.tile(+d.i); },
+  // feria (teléfono)
+  fSel(d) { const t = +d.t; const h = P.st && P.st.h && P.st.h[P.me]; if (!h) return; P.fs = P.fs && P.fs.t === t ? null : { t, c: Math.min(h[t], P.fs ? P.fs.c : 1, 4) }; render(); },
+  fQty(d) { if (P.fs) { P.fs.c = +d.c; render(); } },
+  fOffer() { if (P.fs) feriaSend({ op: 'offer', t: P.fs.t, c: P.fs.c }); },
+  fCancel() { feriaSend({ op: 'cancel' }); },
+  fAcc(d) { if (P.fs) feriaSend({ op: 'accept', to: d.to, t: P.fs.t }); },
+  fBell() { feriaSend({ op: 'bell' }); try { navigator.vibrate && navigator.vibrate([80, 40, 80]); } catch (e) {} },
   // teléfono
   pAns(d) { answer(d.str ? d.v : +d.v); },
   pPeek() { P.peek = !P.peek; render(); },

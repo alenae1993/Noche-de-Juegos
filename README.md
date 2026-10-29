@@ -15,6 +15,7 @@ Set de party games en español para jugar en la tele, el notebook o pasándose e
 | Onda | Wavelength | El psíquico da una pista y el grupo ubica el objetivo en el dial |
 | Dibuja y adivina | Pictionary | Se dibuja en la pantalla con temporizador |
 | ¿Quién es más probable? | Juego de fiesta | Pregunta, cuenta regresiva y todos apuntan |
+| Feria de cachureos | Pit / La Feria de las Pulgas | Todos cambian cartas a la vez desde el celular gritando la cantidad; gana quien junta 9 iguales y toca la campana (3 a 10 jugadores, solo con sala) |
 | Adivina la canción | Hitster | El DJ pone la canción en Spotify; buzzer o adivinar el año |
 
 Incluye un interruptor de contenido +18 (preguntas de carrete y copete).
