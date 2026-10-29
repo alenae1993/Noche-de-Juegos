@@ -2731,13 +2731,29 @@ async function importZip(file) {
     await importFiles(blobs);
   } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude abrir el zip. Prueba descomprimiéndolo y cargando la carpeta.'; render(); }
 }
-async function importSheet(file, cols, rows, count) {
+async function importSheet(file, cols, rows, count, label = '') {
   try {
-    cardsBusy = 'Recortando la hoja…'; render(); const img = await loadImg(file);
+    cardsBusy = label + 'Recortando la hoja…'; render(); const img = await loadImg(file);
     const w = img.naturalWidth / cols, h = img.naturalHeight / rows; const out = []; let k = 0;
-    for (let r = 0; r < rows && k < count; r++) for (let c = 0; c < cols && k < count; c++, k++) { cardsBusy = `Recortando carta ${k + 1} de ${count}…`; render(); out.push(await makeCard(img, c * w, r * h, w, h)); }
+    for (let r = 0; r < rows && k < count; r++) for (let c = 0; c < cols && k < count; c++, k++) { cardsBusy = `${label}Recortando carta ${k + 1} de ${count}…`; if (k % 5 === 0) render(); out.push(await makeCard(img, c * w, r * h, w, h)); }
     await addCards(out); cardsBusy = ''; S.cardMsg = `${out.length} cartas recortadas de la hoja.`; render();
   } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude leer esa imagen.'; render(); }
+}
+// Cartas incluidas en la versión privada de claude.ai (la versión pública no trae imágenes)
+const PACK_SHEETS = (typeof INCLUDED_PACK !== 'undefined' && Array.isArray(INCLUDED_PACK)) ? INCLUDED_PACK : [];
+const PACK_TOTAL = PACK_SHEETS.reduce((a, p) => a + p.n, 0);
+const PACK_FLAG = 'noche-dixit-incluidas';
+const packLoaded = () => { try { return localStorage.getItem(PACK_FLAG) === '1' && CARDS.length >= PACK_TOTAL; } catch (e) { return false; } };
+async function loadIncluded() {
+  if (cardsBusy || !PACK_SHEETS.length) return;
+  for (let i = 0; i < PACK_SHEETS.length; i++) {
+    const p = PACK_SHEETS[i]; const label = `Hoja ${i + 1} de ${PACK_SHEETS.length} · `;
+    cardsBusy = label + 'Descargando…'; render();
+    try { const r = await fetch(p.url); if (!r.ok) throw new Error(r.status); await importSheet(await r.blob(), p.c, p.r, p.n, label); }
+    catch (e) { cardsBusy = ''; S.cardMsg = `No pude descargar la hoja ${i + 1}. Revisa la conexión y vuelve a intentarlo (se cargarán de nuevo desde el principio).`; render(); return; }
+  }
+  try { localStorage.setItem(PACK_FLAG, '1'); } catch (e) {}
+  cardsBusy = ''; S.cardMsg = `Listo: ${PACK_TOTAL} cartas de Dixit cargadas en este navegador.`; render();
 }
 async function makeSampleCards(n = 84) {
   const out = [];
@@ -2761,6 +2777,7 @@ VIEWS.cards = () => {
     <p class="muted">Las cartas se guardan solo en este navegador y nunca se publican. Cárgalas en el dispositivo que va a ser la pantalla principal; durante el juego, la pantalla envía a cada celular las cartas de su mano.</p>
     ${cardsNoDB ? `<p class="note">Este navegador no permite guardar las cartas (¿modo incógnito?). Funcionan mientras no cierres la página.</p>` : ''}
     ${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}
+    ${PACK_SHEETS.length ? `<div class="panel spread"><div><b>Cartas de Dixit incluidas (${PACK_TOTAL})</b><div class="small muted">${packLoaded() ? 'Ya están cargadas en este navegador.' : 'Se descargan y guardan en este navegador una sola vez. Toma unos minutos.'}</div></div><button class="btn" data-a="cardsIncluded" ${cardsBusy || packLoaded() ? 'disabled' : ''}>${packLoaded() ? 'Cargadas ✓' : 'Cargar las ' + PACK_TOTAL + ' cartas'}</button></div>` : ''}
     <div class="dgrid2">
       <label class="panel stack"><b>Imágenes sueltas</b><span class="small muted">Elige una o muchas imágenes (JPG, PNG). Una imagen = una carta.</span><input type="file" id="cf-files" accept="image/*" multiple data-file="files"></label>
       <label class="panel stack"><b>Una carpeta completa</b><span class="small muted">Elige la carpeta donde tienes las cartas (funciona en Chrome y Edge de computador).</span><input type="file" id="cf-dir" webkitdirectory multiple data-file="files"></label>
@@ -2877,6 +2894,7 @@ GAMES.dix = {
       const n = hostPlayers().length;
       return `<div class="stagebox">
         <p>Juego de imaginación basado en Dixit. Cada ronda, un narrador da una pista sobre una carta y los demás intentan confundir con cartas parecidas. <b>Se juega con tus propias cartas</b>, que se cargan en esta pantalla.</p>
+        ${PACK_SHEETS.length && !CARDS.length ? `<div class="panel spread"><div><b>Aún no hay cartas en este navegador</b><div class="small muted">Carga las ${PACK_TOTAL} cartas de Dixit incluidas (una sola vez, toma unos minutos).</div></div><button class="btn" data-a="cardsIncluded" ${cardsBusy ? 'disabled' : ''}>Cargar cartas</button></div>${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}` : ''}
         <div class="row"><span class="pill">${CARDS.length} cartas cargadas</span><span class="pill">${n} jugadores conectados (de 3 a 8)</span><button class="btn alt" data-a="cardsOpen">Mis cartas</button></div>
         <div class="toggle ${g.tut ? 'on' : ''}" data-a="dixTut" role="switch" aria-checked="${g.tut}" tabindex="0"><span class="sw"></span><span>Mostrar la explicación paso a paso antes de empezar (recomendado si alguien no ha jugado)</span></div>
         ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}
@@ -3119,10 +3137,11 @@ const ACT = {
   feudTile(d) { GAMES.feud.tile(+d.i); },
   // imaginario
   cardsOpen() { S.prevView = S.view; S.view = 'cards'; S.cardMsg = ''; dixLoad(); render(); },
+  cardsIncluded() { loadIncluded(); },
   cardsSample() { if (!cardsBusy) makeSampleCards(84); },
   async cardsClear() {
     if (!S.cardConfirm) { S.cardConfirm = true; const b = document.querySelector('[data-a=cardsClear]'); if (b) b.textContent = 'Toca otra vez para borrar todo'; setTimeout(() => { S.cardConfirm = false; }, 3000); return; }
-    S.cardConfirm = false; CARDS.forEach(c => { try { URL.revokeObjectURL(CARD_URL[c.id]); } catch (e) {} delete CARD_URL[c.id]; delete CARD_TH[c.id]; }); CARDS = []; try { await CDB.clear(); } catch (e) {} S.cardMsg = 'Cartas borradas.'; render();
+    S.cardConfirm = false; CARDS.forEach(c => { try { URL.revokeObjectURL(CARD_URL[c.id]); } catch (e) {} delete CARD_URL[c.id]; delete CARD_TH[c.id]; }); CARDS = []; try { await CDB.clear(); } catch (e) {} try { localStorage.removeItem(PACK_FLAG); } catch (e) {} S.cardMsg = 'Cartas borradas.'; render();
   },
   dixTut() { S.g.tut = !S.g.tut; render(); },
   dixHelp() { S.g.help = !S.g.help; render(); },
