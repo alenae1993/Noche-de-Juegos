@@ -172,6 +172,15 @@ a{color:var(--sun)}
 input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;background:none}
 .yr{font-family:var(--f-display);font-size:3.4rem;color:var(--sun);text-align:center}
 
+.btab{border-collapse:separate;border-spacing:6px;min-width:100%}
+.btab th{text-align:left;font-size:.85rem;color:var(--muted);font-weight:700;white-space:nowrap;padding:0 4px}
+.btab td{vertical-align:top}
+.bcell{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;font-weight:700;min-width:110px;text-align:left;width:100%}
+.bcell small{font-family:var(--f-display);font-size:.9rem}
+.bcell.uni{background:color-mix(in srgb,var(--ok) 28%,var(--stage-3))}
+.bcell.rep{background:color-mix(in srgb,var(--sun) 28%,var(--stage-3))}
+.bcell.nul{background:var(--stage-3);color:var(--muted);text-decoration:line-through}
+.bcell.empty{background:transparent;color:var(--muted)}
 .fcard{display:inline-flex;flex-direction:column;justify-content:space-between;gap:6px;padding:10px 12px;border-radius:12px;color:#1b1033;font-weight:800;min-width:110px;min-height:74px;font-size:.95rem;box-shadow:inset 0 0 0 3px rgba(27,16,51,.15)}
 .fcard small{font-weight:600;opacity:.8}
 .frow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--stage-3);font-weight:700;text-align:left;border:3px solid transparent;width:100%}
@@ -497,6 +506,12 @@ const FERIA = [
 ];
 const FERIA_META = 250;
 
+// Basta (Tutti Frutti)
+const BASTA_CATS = ['Nombre','Apellido','Animal','Fruta o verdura','País','Ciudad','Color','Cosa','Marca','Comida','Profesión','Película o serie','Cantante o banda','Deporte','Parte del cuerpo','Comuna de Chile','Futbolista','Personaje de ficción'];
+const BASTA_CATS_X = ['Trago o copete','Lugar para una primera cita','Excusa para irse temprano'];
+const BASTA_DEFAULT = ['Nombre','Apellido','Animal','Fruta o verdura','País','Color','Cosa','Marca'];
+const BASTA_LETTERS = 'ABCDEFGHIJLMNOPRSTUV';
+
 // ===================== utilidades =====================
 const $app = document.getElementById('app');
 const COLORS = ['#ff6a55','#ffc23d','#27c7b4','#5a83ff','#ff4fa3','#3ddc84','#c58bff','#ff9a3d','#7fe0ff','#f2f27a','#ff8fb8','#a6e36b'];
@@ -607,7 +622,7 @@ async function peerPhone(code) {
 const NET_ERR = { 'peer-unavailable': 'No existe una sala con ese código. Revisa las letras.', 'timeout': 'La sala no respondió. Revisa el código y que ambos tengan internet.', 'sin-internet': 'No se pudo cargar la conexión. Revisa tu internet.', 'network': 'Problema de red. Intenta de nuevo.', 'browser-incompatible': 'Este navegador no permite la conexión directa.' };
 const netMsg = e => NET_ERR[e && e.code] || ('Error de conexión (' + ((e && e.code) || 'desconocido') + ').');
 
-const P = { st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
+const P = { bAns: {}, st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
 
 async function joinRoom(code, role) {
   if (NR) { try { await NR.leave(); } catch (e) {} NR = null; }
@@ -763,6 +778,7 @@ const GAME_LIST = [
   { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Celulares', 'Un dispositivo'] },
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
+  { id: 'basta', name: 'Basta', d: 'Sale una letra y a llenar categorías. El primero que termina grita ¡BASTA!', glyph: 'B', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
   { id: 'feria', name: 'Feria de cachureos', d: 'Todos cambian cartas a gritos al mismo tiempo. Junta 9 iguales y toca la campana.', glyph: '9', c: 'c2', tags: ['Celulares', '3 a 10'] },
   { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Celulares', 'Spotify'] },
 ];
@@ -861,6 +877,15 @@ PHONE.draw = st => {
   if (solved) return `<div class="secret"><h2 style="color:var(--ok)">¡Adivinaste!</h2><p class="muted">Era ${esc(st.w)}.</p></div>`;
   return `<div class="spread"><span class="eyebrow">Adivina el dibujo</span>${phoneTimer(st)}</div><p class="muted">Mira la pantalla principal y escribe tu respuesta. Puedes intentar varias veces.</p>
     <div class="row"><input id="gs" placeholder="¿Qué es?" data-enter="pGuess" style="flex:1" autocomplete="off"><button class="btn" data-a="pGuess">Enviar</button></div>`;
+};
+PHONE.basta = st => {
+  const ans = P.bAns[st.k] || (P.bAns[st.k] = []);
+  if (st.ph === 'res') { const pts = st.pts ? st.pts[P.me] : undefined; return `<div class="secret"><span class="eyebrow">Letra ${esc(st.L)}</span><h2 style="color:var(--sun)">${pts !== undefined ? '+' + pts : 'Sin respuestas'}</h2><p class="muted">Mira el detalle en la pantalla.</p></div>`; }
+  const done = st.cats.every((_, i) => startsWith(ans[i], st.L));
+  if (st.ph !== 'play') return `<div class="secret"><div class="big-word" style="color:var(--coral)">¡BASTA!</div><p>${st.by ? 'Lo gritó ' + esc(st.by) : 'Se acabó el tiempo'}. Revisen en la pantalla.</p></div>`;
+  return `<div class="spread"><span class="eyebrow">Empieza con</span>${phoneTimer(st)}</div><div class="code" style="text-align:center;font-size:4rem">${esc(st.L)}</div>
+    <div class="stack">${st.cats.map((c, i) => { const v = ans[i] || ''; const ok = startsWith(v, st.L); return `<label class="stack" style="gap:4px"><span class="small ${v && !ok ? '' : 'muted'}" style="${v && !ok ? 'color:var(--bad)' : ''}">${esc(c)}${v && !ok ? ' · debe empezar con ' + esc(st.L) : ''}</span><input id="b${i}" data-in="bas" data-i="${i}" value="${esc(v)}" maxlength="40" autocomplete="off" autocapitalize="sentences"></label>`; }).join('')}</div>
+    <button class="btn big bad" data-a="bBasta" ${done ? '' : 'disabled'} id="bbtn">¡BASTA!</button>`;
 };
 PHONE.feria = st => {
   const tot = st.tot ? (st.tot[S.pname] || 0) : 0;
@@ -1414,6 +1439,92 @@ GAMES.feud = {
 };
 function showX() { const d = document.createElement('div'); d.className = 'bigx'; d.textContent = '✕'; document.body.appendChild(d); setTimeout(() => d.remove(), 950); }
 
+// ---------- BASTA ----------
+const startsWith = (ans, L) => { const a = norm(ans); return !!a && a[0] === norm(L); };
+GAMES.basta = {
+  start() {
+    const cats = (S.bastaCats || BASTA_DEFAULT).filter(c => BASTA_CATS.includes(c) || (S.adult && BASTA_CATS_X.includes(c)));
+    newGame('basta', { ph: 'setup', cats: cats.length >= 3 ? cats : BASTA_DEFAULT.slice(), used: [], time: 90, round: 0 });
+    pub({ t: 'wait', msg: 'Preparando el Basta' }); render();
+  },
+  pool() { return BASTA_CATS.concat(S.adult ? BASTA_CATS_X : []); },
+  begin() {
+    const g = S.g; if (g.cats.length < 3) return;
+    S.bastaCats = g.cats.slice(); nextKey(); g.round++;
+    const free = BASTA_LETTERS.split('').filter(l => !g.used.includes(l));
+    g.L = pick(free.length ? free : BASTA_LETTERS.split('')); g.used.push(g.L);
+    g.ans = {}; g.bastaBy = null; g.bad = {}; g.ph = 'play';
+    startTimer(g.time, () => this.stop(null)); this.pub(); render();
+  },
+  pub() { const g = S.g; pub({ t: 'basta', k: g.key, ph: g.ph === 'review' ? 'stop' : g.ph, L: g.L, cats: g.cats, by: g.bastaBy, dur: g.ph === 'play' ? tLeft() : 0, pts: g.ph === 'res' ? g.ptsBy : undefined }); },
+  onAnswer(p, a) {
+    const g = S.g; if (!(g.ph === 'play' || g.ph === 'grace') || !a.v || !Array.isArray(a.v.r)) return;
+    g.ans[p.id] = { name: p.name, color: p.color, r: g.cats.map((_, i) => String(a.v.r[i] || '').slice(0, 40)) };
+    if (a.v.b && g.ph === 'play') { const r = g.ans[p.id].r; if (r.every(x => startsWith(x, g.L))) { this.stop(p.name); return; } }
+    if (g.ph === 'play') render();
+  },
+  stop(by) {
+    const g = S.g; if (g.ph !== 'play') return; stopTimer();
+    g.bastaBy = by; g.ph = S.mode === 'host' ? 'grace' : 'localstop'; this.pub(); render();
+    if (S.mode === 'host') setTimeout(() => { if (S.g === g && g.ph === 'grace') { g.ph = 'review'; render(); } }, 1500);
+  },
+  score() {
+    const g = S.g, out = {}, ids = Object.keys(g.ans);
+    g.cats.forEach((_, ci) => {
+      const valid = ids.filter(id => !g.bad[id + ':' + ci] && startsWith(g.ans[id].r[ci], g.L));
+      const count = {}; valid.forEach(id => { const k = norm(g.ans[id].r[ci]); count[k] = (count[k] || 0) + 1; });
+      ids.forEach(id => {
+        out[id] = out[id] || { tot: 0, c: [] };
+        let pts = 0;
+        if (valid.includes(id)) pts = valid.length === 1 ? 200 : count[norm(g.ans[id].r[ci])] > 1 ? 50 : 100;
+        out[id].c[ci] = pts; out[id].tot += pts;
+      });
+    });
+    return out;
+  },
+  toggle(key) { const g = S.g; g.bad[key] = !g.bad[key]; render(); },
+  confirm() {
+    const g = S.g; const sc = this.score(); g.ptsBy = {};
+    Object.entries(sc).forEach(([id, x]) => { g.ptsBy[id] = x.tot; if (x.tot) addPts(g.ans[id].name, x.tot); });
+    g.ph = 'res'; this.pub(); render();
+  },
+  view() {
+    const g = S.g, host = S.mode === 'host';
+    if (g.ph === 'setup') return `<div class="stagebox">
+      <p class="muted">Sale una letra al azar y cada uno escribe una palabra por categoría que empiece con esa letra. El primero que completa todo grita <b>¡BASTA!</b> y todos dejan de escribir. Palabra única: 100 · repetida: 50 · si eres el único que llenó esa categoría: 200.</p>
+      <div class="stack"><span class="eyebrow">Categorías (${g.cats.length})</span><div class="chips">${this.pool().map(c => `<button class="chip ${g.cats.includes(c) ? 'sel' : ''}" data-a="bCat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div><span class="small muted">Elige entre 3 y 10.</span></div>
+      <label class="row"><span class="muted">Tiempo máximo (seg)</span><input type="number" id="btime" min="30" max="300" step="10" value="${g.time}" data-in="btime" style="width:100px"></label>
+      <div class="row"><button class="btn big" data-a="g" data-f="begin" ${g.cats.length < 3 ? 'disabled' : ''}>Sacar letra</button></div></div>`;
+    const letter = `<div class="row center" style="gap:18px"><div class="code" style="font-size:clamp(4rem,14vw,7rem)">${g.L}</div></div>`;
+    if (g.ph === 'play') return `<div class="stagebox" style="text-align:center"><span class="eyebrow">Ronda ${g.round} · letra</span>${letter}
+      <div class="chips" style="justify-content:center">${g.cats.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+      <div class="row center">${timerEl()}${host ? `<span class="muted">${Object.keys(g.ans).length} de ${hostPlayers().length} escribiendo</span>` : ''}</div>
+      ${host ? `<p class="small muted">Cada uno escribe en su celular. El botón ¡BASTA! se activa cuando completa todas las categorías.</p><button class="btn alt" data-a="g" data-f="stopNow">Cortar ahora</button>`
+        : `<p class="small muted">Escriban en papel. El primero que termina toca el botón.</p><button class="btn big bad" data-a="g" data-f="stopNow">¡BASTA!</button>`}</div>`;
+    if (g.ph === 'grace') return `<div class="stagebox" style="text-align:center;align-items:center"><div class="big-word" style="color:var(--coral)">¡BASTA!</div><p>${g.bastaBy ? `Lo gritó <b>${esc(g.bastaBy)}</b>` : 'Se acabó el tiempo'}. Juntando respuestas…</p></div>`;
+    if (g.ph === 'localstop') return `<div class="stagebox" style="text-align:center;align-items:center"><div class="big-word" style="color:var(--coral)">¡BASTA!</div><p>Letra <b>${g.L}</b>. Lean sus respuestas en voz alta categoría por categoría.</p>
+      <p class="note" style="text-align:left">Única: 100 · Repetida: 50 · Único que llenó la categoría: 200 · Mal escrita o con otra letra: 0</p>
+      <div class="row center"><button class="btn alt" data-a="scores">Anotar puntos</button><button class="btn big" data-a="g" data-f="begin">Otra letra</button></div></div>`;
+    // review / res (host)
+    const sc = this.score(); const ids = Object.keys(g.ans);
+    const review = g.ph === 'review';
+    return `<div class="stagebox">
+      <div class="spread"><span class="eyebrow">Letra ${g.L} · ${g.bastaBy ? 'Basta de ' + esc(g.bastaBy) : 'Se acabó el tiempo'}</span>${review ? '<span class="small muted">Toca una respuesta para anularla si el grupo no la acepta.</span>' : ''}</div>
+      <div style="overflow-x:auto"><table class="btab"><thead><tr><th>Categoría</th>${ids.map(id => `<th><span class="dot" style="background:${g.ans[id].color}"></span> ${esc(g.ans[id].name)}</th>`).join('')}</tr></thead><tbody>
+      ${g.cats.map((c, ci) => `<tr><th>${esc(c)}</th>${ids.map(id => { const v = g.ans[id].r[ci]; const k = id + ':' + ci; const pts = sc[id].c[ci]; const cls = !v ? 'empty' : g.bad[k] || !startsWith(v, g.L) ? 'nul' : pts === 50 ? 'rep' : 'uni';
+        return `<td>${review && v ? `<button class="bcell ${cls}" data-a="bBad" data-k="${esc(k)}">` : `<span class="bcell ${cls}">`}${esc(v || '—')}<small>${pts}</small>${review && v ? '</button>' : '</span>'}</td>`; }).join('')}</tr>`).join('')}
+      <tr><th>Total</th>${ids.map(id => `<td><b class="timer" style="font-size:1.4rem">${sc[id].tot}</b></td>`).join('')}</tr></tbody></table></div>
+      ${ids.length ? '' : '<p class="muted">Nadie envió respuestas.</p>'}
+      <div class="row">${review ? `<button class="btn big" data-a="g" data-f="confirm">Confirmar puntos</button>` : `<button class="btn big" data-a="g" data-f="begin">Otra letra</button><button class="btn alt" data-a="g" data-f="start">Cambiar categorías</button>`}</div></div>`;
+  },
+  stopNow() { this.stop(S.mode === 'host' ? null : 'el grupo'); },
+};
+function bastaSend(b) {
+  if (!NR || !P.st) return; const st = P.st;
+  const r = st.cats.map((_, i) => (P.bAns[st.k] || [])[i] || '');
+  NR.presence({ a: { k: st.k, v: { r, b: b ? 1 : 0 } } }).catch(() => {});
+}
+
 // ---------- FERIA DE CACHUREOS (tipo Pit) ----------
 function ding() { try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const ac = ding.ac || (ding.ac = new C()); [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), gn = ac.createGain(); o.frequency.value = f; o.type = 'triangle'; gn.gain.setValueAtTime(0.0001, ac.currentTime + i * .12); gn.gain.exponentialRampToValueAtTime(0.3, ac.currentTime + i * .12 + .02); gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + i * .12 + .6); o.connect(gn).connect(ac.destination); o.start(ac.currentTime + i * .12); o.stop(ac.currentTime + i * .12 + .65); }); } catch (e) {} }
 const feriaCard = (t, extra = '') => `<span class="fcard" style="background:${FERIA[t][2]}">${esc(FERIA[t][0])}<small>${FERIA[t][1]} pts</small>${extra}</span>`;
@@ -1566,6 +1677,10 @@ const ACT = {
   feudGuess() { const el = document.getElementById('fa'); const v = el ? el.value : ''; if (el) el.value = ''; GAMES.feud.guess(v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
   feudStrike() { GAMES.feud.strike(''); },
   feudTile(d) { GAMES.feud.tile(+d.i); },
+  // basta
+  bCat(d) { const g = S.g; const i = g.cats.indexOf(d.v); if (i >= 0) g.cats.splice(i, 1); else if (g.cats.length < 10) g.cats.push(d.v); render(); },
+  bBad(d) { GAMES.basta.toggle(d.k); },
+  bBasta() { bastaSend(true); try { navigator.vibrate && navigator.vibrate(120); } catch (e) {} },
   // feria (teléfono)
   fSel(d) { const t = +d.t; const h = P.st && P.st.h && P.st.h[P.me]; if (!h) return; P.fs = P.fs && P.fs.t === t ? null : { t, c: Math.min(h[t], P.fs ? P.fs.c : 1, 4) }; render(); },
   fQty(d) { if (P.fs) { P.fs.c = +d.c; render(); } },
@@ -1597,6 +1712,8 @@ document.addEventListener('input', e => {
   if (k === 'wv') { P.wv = +e.target.value; const svg = e.target.parentElement.querySelector('.dial line'); if (svg) { const [x, y] = dialPt(P.wv, 86); svg.setAttribute('x2', x.toFixed(1)); svg.setAttribute('y2', y.toFixed(1)); } }
   if (k === 'yr') { P.yr = +e.target.value; const o = document.getElementById('yrv'); if (o) o.textContent = P.yr; }
   if (k === 'team0' || k === 'team1') { S.teams[+k.slice(-1)] = e.target.value.slice(0, 20) || 'Equipo'; save(); }
+  if (k === 'bas' && P.st) { const st = P.st; (P.bAns[st.k] || (P.bAns[st.k] = []))[+e.target.dataset.i] = e.target.value.slice(0, 40); bastaSend(false); const ok = st.cats.every((_, i) => startsWith((P.bAns[st.k] || [])[i], st.L)); const b = document.getElementById('bbtn'); if (b) b.disabled = !ok; }
+  if (k === 'btime' && S.g && S.g.id === 'basta') { S.g.time = Math.max(30, Math.min(300, +e.target.value || 90)); }
   if (k === 'cfg') { const v = Math.max(30, Math.min(600, +e.target.value || 150)); S.cfg[e.target.dataset.k] = v; save(); }
 });
 try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
