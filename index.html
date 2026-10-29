@@ -519,16 +519,90 @@ function save() { try { localStorage.setItem(LS, JSON.stringify({cfg:S.cfg, adul
 
 // ===================== sala (room) =====================
 let ROOM = null, NR = null, roomChecked = false;
-(async () => { try { ROOM = await window.claude?.use?.('room'); } catch (e) { ROOM = null; } roomChecked = true; if (S.view === 'home') render(); })();
+// 'room' = sala de claude.ai · 'peer' = conexión directa entre dispositivos (GitHub Pages u otro sitio) · 'none' = sin sala
+let TRANSPORT = 'none';
+(async () => {
+  const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+  try { ROOM = inClaude ? await window.claude.use('room') : null; } catch (e) { ROOM = null; }
+  TRANSPORT = ROOM ? 'room' : (inClaude ? 'none' : 'peer');
+  roomChecked = true; if (S.view === 'home' && S.booted) render();
+})();
+
+// ---------- conexión directa (PeerJS) para cuando el juego no corre dentro de claude.ai ----------
+const PEER_PREFIX = 'noche-de-juegos-v1-';
+let peerLib = null;
+function loadPeerJS() {
+  if (window.Peer) return Promise.resolve();
+  if (peerLib) return peerLib;
+  peerLib = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'; sc.onload = res; sc.onerror = () => { peerLib = null; rej(Object.assign(new Error('peerjs'), { code: 'sin-internet' })); }; document.head.appendChild(sc); });
+  return peerLib;
+}
+function mergePres(cur, patch) { const n = { ...cur }; for (const k in patch) { if (patch[k] === null) delete n[k]; else n[k] = patch[k]; } return n; }
+function peerApi(snap, cbs, setMy, destroy) {
+  return {
+    peers: snap,
+    onPeers(f) { cbs.add(f); setTimeout(() => { const pe = snap(); f({ peers: pe, joined: pe, left: [], updated: [] }); }, 0); return () => cbs.delete(f); },
+    presence(patch) { setMy(patch); return Promise.resolve(); },
+    leave() { cbs.clear(); destroy(); return Promise.resolve(); },
+  };
+}
+async function peerHost(code) {
+  await loadPeerJS();
+  return new Promise((resolve, reject) => {
+    const peer = new window.Peer(PEER_PREFIX + code);
+    const conns = new Map(), pres = new Map(), cbs = new Set(); let my = {}, t = null, opened = false;
+    const snap = () => [{ peer: 'host', sameTab: true, isMe: true, presence: my }, ...[...pres].map(([id, p]) => ({ peer: id, sameTab: false, isMe: false, presence: p }))];
+    const fire = (j = [], l = [], u = []) => { const ch = { peers: snap(), joined: j, left: l, updated: u }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
+    const sendAll = () => { const m = { t: 'host', p: my }; conns.forEach(c => { try { if (c.open) c.send(m); } catch (e) {} }); };
+    const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; sendAll(); }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
+    peer.on('open', () => { opened = true; resolve(api); });
+    peer.on('error', e => { if (!opened) reject(Object.assign(new Error(e.type), { code: e.type })); });
+    peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+    peer.on('connection', conn => {
+      conn.on('open', () => { conns.set(conn.peer, conn); try { conn.send({ t: 'host', p: my }); } catch (e) {} });
+      conn.on('data', d => {
+        if (!d || d.t !== 'pres' || typeof d.p !== 'object' || d.p === null) return;
+        const had = pres.has(conn.peer); pres.set(conn.peer, d.p);
+        const e = { peer: conn.peer, presence: d.p }; had ? fire([], [], [e]) : fire([e]);
+      });
+      const gone = () => { conns.delete(conn.peer); if (pres.delete(conn.peer)) fire([], [{ peer: conn.peer }]); };
+      conn.on('close', gone); conn.on('error', gone);
+    });
+  });
+}
+async function peerPhone(code) {
+  await loadPeerJS();
+  return new Promise((resolve, reject) => {
+    const peer = new window.Peer();
+    const cbs = new Set(); let my = {}, host = null, conn = null, myId = 'yo', t = null, done = false;
+    const snap = () => { const a = [{ peer: myId, sameTab: true, isMe: true, presence: my }]; if (host) a.push({ peer: 'host', sameTab: false, isMe: false, presence: host }); return a; };
+    const fire = () => { const ch = { peers: snap(), joined: [], left: [], updated: [] }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
+    const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; try { if (conn && conn.open) conn.send({ t: 'pres', p: my }); } catch (e) {} }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
+    const fail = code => { if (done) return; done = true; try { peer.destroy(); } catch (e) {} reject(Object.assign(new Error(code), { code })); };
+    peer.on('open', id => {
+      myId = id;
+      conn = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' });
+      conn.on('open', () => { if (done) return; done = true; try { conn.send({ t: 'pres', p: my }); } catch (e) {} resolve(api); });
+      conn.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } });
+      conn.on('close', () => { host = null; fire(); });
+    });
+    peer.on('error', e => fail(e.type));
+    setTimeout(() => fail('timeout'), 15000);
+  });
+}
+const NET_ERR = { 'peer-unavailable': 'No existe una sala con ese código. Revisa las letras.', 'timeout': 'La sala no respondió. Revisa el código y que ambos tengan internet.', 'sin-internet': 'No se pudo cargar la conexión. Revisa tu internet.', 'network': 'Problema de red. Intenta de nuevo.', 'browser-incompatible': 'Este navegador no permite la conexión directa.' };
+const netMsg = e => NET_ERR[e && e.code] || ('Error de conexión (' + ((e && e.code) || 'desconocido') + ').');
 
 const P = { st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
 
-async function joinRoom(code) {
-  if (!ROOM) throw new Error('sin sala');
+async function joinRoom(code, role) {
   if (NR) { try { await NR.leave(); } catch (e) {} NR = null; }
-  NR = await ROOM.join('noche-' + code.toLowerCase());
+  if (TRANSPORT === 'room') NR = await ROOM.join('noche-' + code.toLowerCase());
+  else if (TRANSPORT === 'peer') NR = role === 'host' ? await peerHost(code) : await peerPhone(code);
+  else throw Object.assign(new Error('sin sala'), { code: 'sin-sala' });
   return NR;
 }
+const newCode = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
 
 function hostPlayers() {
   if (!NR) return [];
@@ -606,15 +680,16 @@ function render() {
   if (keep) { const el = document.getElementById(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch (e) {} } }
   while (AFTER.length) { try { AFTER.shift()(); } catch (e) { console.error(e); } }
   tick();
+  if (S.booted) syncHash();
 }
 
-const topBar = (extra = '') => `<div class="top"><div class="logo">NOCHE DE <span>JUEGOS</span></div><div class="row">${extra}</div></div>`;
+const topBar = (extra = '') => `<div class="top"><div class="row"><button class="btn alt" data-a="goBack" aria-label="Volver atrás">← Atrás</button><div class="logo">NOCHE DE <span>JUEGOS</span></div></div><div class="row">${extra}</div></div>`;
 const chipP = p => `<span class="chip"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`;
 
 const VIEWS = {};
 
 VIEWS.home = () => {
-  const noRoom = roomChecked && !ROOM;
+  const noRoom = roomChecked && TRANSPORT === 'none';
   return `
   <div class="hero">
     <div class="bulbs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -634,7 +709,7 @@ VIEWS.home = () => {
 };
 
 VIEWS.localSetup = () => `
-  ${topBar(`<button class="btn alt" data-a="home">Inicio</button>`)}
+  ${topBar()}
   <div class="panel stack">
     <h2>¿Quiénes juegan?</h2>
     <div class="row"><input id="pn" placeholder="Nombre del jugador" maxlength="16" data-enter="addPlayer" style="flex:1"><button class="btn" data-a="addPlayer">Agregar</button></div>
@@ -650,13 +725,14 @@ VIEWS.hostLobby = () => {
     <span class="eyebrow">Código de la sala</span>
     <div class="code">${esc(S.code)}</div>
     <p class="muted" style="max-width:52ch">Cada jugador abre este mismo enlace en su celular, toca <b>Unirme con mi celular</b> y escribe el código.</p>
+    ${TRANSPORT === 'peer' ? `<p class="small muted" style="max-width:52ch">Conexión directa entre dispositivos: funciona mejor si todos están en el mismo WiFi. No cierres ni bloquees esta pantalla durante el juego.</p>` : ''}
     <div class="chips" style="justify-content:center">${ps.map(chipP).join('') || '<span class="muted">Esperando jugadores…</span>'}</div>
     <button class="btn big" data-a="menu" ${ps.length < 2 ? 'disabled' : ''}>Elegir juego (${ps.length} conectados)</button>
   </div>`;
 };
 
 VIEWS.join = () => `
-  ${topBar(`<button class="btn alt" data-a="home">Inicio</button>`)}
+  ${topBar()}
   <div class="panel stack phone">
     <h2>Unirme</h2>
     <label class="small muted" for="jn">Tu nombre</label><input id="jn" maxlength="16" value="${esc(S.pname)}" placeholder="Ej: Ale">
@@ -689,7 +765,7 @@ VIEWS.scores = () => {
   const colorOf = n => (roster().find(p => p.name === n) || {}).color || 'var(--muted)';
   const list = names.map(n => ({ n, s: scoreOf(n) })).sort((a, b) => b.s - a.s);
   return `
-  ${topBar(`<button class="btn alt" data-a="back">Volver</button>`)}
+  ${topBar()}
   <div class="stagebox">
     <div class="spread"><h2>Marcador</h2><button class="btn bad" data-a="resetScores">Reiniciar puntajes</button></div>
     <div class="list">${list.map((x, i) => `<div class="score-row"><span class="rank">${i + 1}</span><span class="row"><span class="dot" style="background:${colorOf(x.n)}"></span><b>${esc(x.n)}</b></span><span class="pts">${x.s}</span><span class="row"><button class="mini" data-a="adj" data-n="${esc(x.n)}" data-v="-50" aria-label="Restar 50">−</button><button class="mini" data-a="adj" data-n="${esc(x.n)}" data-v="50" aria-label="Sumar 50">+</button></span></div>`).join('') || '<p class="muted">Aún no hay puntajes.</p>'}</div>
@@ -708,7 +784,7 @@ VIEWS.game = () => {
 VIEWS.phone = () => {
   const st = P.st;
   const score = st && st.sc ? (st.sc[S.pname] ?? 0) : 0;
-  const head = `<div class="top"><span class="chip"><span class="dot" style="background:${S.pcolor}"></span>${esc(S.pname)}</span><span class="pill">Sala ${esc(S.code)} · <b>${score}</b> pts</span><button class="btn alt" data-a="leave">Salir</button></div>`;
+  const head = `<div class="top"><span class="chip"><span class="dot" style="background:${S.pcolor}"></span>${esc(S.pname)}</span><span class="pill">Sala ${esc(S.code)} · <b>${score}</b> pts</span><button class="btn alt" data-a="leave">← Salir</button></div>`;
   let body = '';
   if (!P.host || !st) body = `<div class="secret"><h3>Buscando la pantalla principal…</h3><p class="muted">Si no aparece, revisa el código.</p></div>`;
   else body = (PHONE[st.t] || PHONE.wait)(st);
@@ -1294,28 +1370,40 @@ function showX() { const d = document.createElement('div'); d.className = 'bigx'
 
 // ===================== acciones =====================
 const ACT = {
+  goBack() {
+    const v = S.view;
+    if (v === 'scores') return ACT.back();
+    if (v === 'game') return ACT.menu();
+    if (v === 'menu') return S.mode === 'host' ? ACT.lobby() : ACT.goLocal();
+    if (v === 'hostLobby' || v === 'phone') return ACT.leave();
+    return ACT.home();
+  },
   home() { S.err = ''; S.view = 'home'; S.mode = null; render(); },
   toggleAdult() { S.adult = !S.adult; save(); render(); },
   goLocal() { if (S.mode === 'host' && NR) { NR.leave().catch(() => {}); NR = null; } S.mode = 'local'; S.view = 'localSetup'; render(); setTimeout(() => document.getElementById('pn')?.focus(), 0); },
   addPlayer() { const el = document.getElementById('pn'); const n = (el?.value || '').trim().slice(0, 16); if (!n || S.players.some(p => p.name === n)) return; S.players.push({ id: 'L' + Date.now() + Math.random().toString(36).slice(2, 5), name: n, color: COLORS[S.players.length % COLORS.length] }); save(); el.value = ''; render(); document.getElementById('pn')?.focus(); },
   rmPlayer(d) { S.players.splice(+d.i, 1); save(); render(); },
   async goHost() {
-    if (!ROOM) { S.err = 'La sala con celulares no está disponible en esta vista. Usa "Jugar aquí".'; render(); return; }
-    S.code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-    try { await joinRoom(S.code); } catch (e) { S.err = 'No se pudo crear la sala (' + (e && e.code || 'error') + '). Usa "Jugar aquí".'; render(); return; }
+    if (TRANSPORT === 'none') { S.err = 'La sala con celulares no está disponible en esta vista. Usa "Jugar aquí".'; render(); return; }
+    S.err = 'Creando la sala…'; render();
+    let ok = false, last = null;
+    for (let i = 0; i < 3 && !ok; i++) { S.code = newCode(); try { await joinRoom(S.code, 'host'); ok = true; } catch (e) { last = e; if (!e || e.code !== 'unavailable-id') break; } }
+    if (!ok) { S.err = 'No se pudo crear la sala. ' + netMsg(last); render(); return; }
+    S.err = '';
     S.mode = 'host'; S.view = 'hostLobby';
     NR.onPeers(onHostPeers, e => { S.err = 'Se perdió la conexión de la sala.'; });
     pub({ t: 'wait', msg: 'En el lobby' }); render();
   },
   lobby() { S.view = 'hostLobby'; pub({ t: 'wait', msg: 'En el lobby' }); render(); },
-  goJoin() { if (!ROOM) { S.err = 'La sala con celulares no está disponible en esta vista.'; render(); return; } S.err = ''; S.view = 'join'; render(); },
+  goJoin() { if (TRANSPORT === 'none') { S.err = 'La sala con celulares no está disponible en esta vista.'; render(); return; } S.err = ''; S.view = 'join'; render(); },
   async doJoin() {
     const name = (document.getElementById('jn')?.value || '').trim().slice(0, 16);
     const code = (document.getElementById('jc')?.value || '').trim().toUpperCase();
     if (!name) { S.err = 'Escribe tu nombre.'; render(); return; }
     if (!/^[A-Z]{4}$/.test(code)) { S.err = 'El código tiene 4 letras.'; render(); document.getElementById('jc').value = code; return; }
     S.pname = name; S.code = code; save();
-    try { await joinRoom(code); } catch (e) { S.err = 'No se pudo entrar (' + (e && e.code || 'error') + ').'; render(); return; }
+    S.err = 'Conectando…'; render(); document.getElementById('jc').value = code;
+    try { await joinRoom(code, 'phone'); } catch (e) { S.err = netMsg(e); render(); document.getElementById('jc').value = code; return; }
     S.pcolor = COLORS[Math.floor(Math.random() * COLORS.length)];
     S.mode = 'phone'; S.view = 'phone'; S.err = '';
     NR.onPeers(onPhonePeers);
@@ -1379,8 +1467,28 @@ document.addEventListener('input', e => {
   if (k === 'cfg') { const v = Math.max(30, Math.min(600, +e.target.value || 150)); S.cfg[e.target.dataset.k] = v; save(); }
 });
 try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+S.booted = true;
+
+// ----- botón atrás del navegador / celular -----
+const HASH = { home: '', localSetup: 'jugadores', hostLobby: 'sala', join: 'unirme', menu: 'menu', game: 'juego', scores: 'marcador', phone: 'celular' };
+function syncHash() { const h = HASH[S.view] || ''; if (location.hash.slice(1) !== h) { try { location.hash = h; } catch (e) {} } }
+window.addEventListener('hashchange', () => {
+  const h = location.hash.slice(1); const t = Object.keys(HASH).find(k => HASH[k] === h) || 'home';
+  if (t === S.view) return;
+  if (t === 'home') return NR ? ACT.leave() : ACT.home();
+  if (t === 'localSetup') return ACT.goLocal();
+  if (t === 'hostLobby') return S.mode === 'host' ? ACT.lobby() : ACT.home();
+  if (t === 'menu') return (S.mode === 'local' || S.mode === 'host') ? ACT.menu() : ACT.home();
+  if (t === 'join') return S.mode === 'phone' ? ACT.leave() : ACT.goJoin();
+  if (t === 'scores') return ACT.scores();
+  if (t === 'game' && S.g) { S.view = 'game'; return render(); }
+  if (t === 'phone' && S.mode === 'phone') { S.view = 'phone'; return render(); }
+  syncHash();
+});
+if (location.hash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
 
 render();
+
 </script>
 
 </body>

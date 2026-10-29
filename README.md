@@ -23,4 +23,5 @@ Incluye un interruptor de contenido +18 (preguntas de carrete y copete).
 
 - Todo el juego es un solo archivo, `index.html`, sin dependencias ni build.
 - El contenido (preguntas, roscos, encuestas, palabras, canciones) está en listas al inicio del script, fáciles de editar.
-- La sala con celulares solo funciona en la versión publicada dentro de claude.ai. En GitHub Pages se usa el modo "Jugar aquí".
+- **Sala con celulares:** la pantalla principal crea una sala con un código de 4 letras y cada jugador se une desde su celular abriendo este mismo link. Fuera de claude.ai la conexión es directa entre dispositivos (WebRTC con [PeerJS](https://peerjs.com) y su servidor público gratuito), sin cuentas ni servidor propio. Funciona mejor con todos en el mismo WiFi; algunas redes móviles o corporativas pueden bloquear la conexión directa.
+- El botón **← Atrás** y el botón atrás del navegador o del celular vuelven a la pantalla anterior.
