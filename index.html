@@ -726,9 +726,9 @@ VIEWS.home = () => {
     <p class="muted">Trivia, rosco, 100 chilenos dijeron, impostor, onda, dibujos, votaciones y canciones.</p>
   </div>
   <div class="modes">
-    <button class="mode" data-a="goLocal"><span class="eyebrow">Un dispositivo</span><h3>Jugar aquí</h3><p class="muted">Todo en esta pantalla. Ideal para la tele o para ir pasándose el celular.</p></button>
-    <button class="mode ${noRoom ? 'off' : ''}" data-a="goHost"><span class="eyebrow">Pantalla principal</span><h3>Crear sala</h3><p class="muted">Esta pantalla muestra el juego y cada uno responde desde su celular.</p></button>
-    <button class="mode ${noRoom ? 'off' : ''}" data-a="goJoin"><span class="eyebrow">Jugador</span><h3>Unirme con mi celular</h3><p class="muted">Ingresa el código que aparece en la pantalla principal.</p></button>
+    <button class="mode" data-a="goLocal"><span class="eyebrow">Sin sala</span><h3>Jugar aquí</h3><p class="muted">Todo en esta pantalla. Ideal para la tele o para ir pasándose el celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goHost"><span class="eyebrow">Con sala · pantalla principal</span><h3>Crear sala</h3><p class="muted">Esta pantalla muestra el juego y cada uno responde desde su celular.</p></button>
+    <button class="mode ${noRoom ? 'off' : ''}" data-a="goJoin"><span class="eyebrow">Con sala · jugador</span><h3>Unirme con mi celular</h3><p class="muted">Ingresa el código que aparece en la pantalla principal.</p></button>
   </div>
   ${noRoom ? `<p class="note">La sala con celulares no está disponible en esta vista. Funciona cuando cada jugador abre este mismo enlace con su cuenta de claude.ai (miembros de tu organización o invitados al artefacto). Mientras tanto, usa "Jugar aquí".</p>` : ''}
   <div class="panel spread">
@@ -771,16 +771,16 @@ VIEWS.join = () => `
   </div>`;
 
 const GAME_LIST = [
-  { id: 'trivia', name: 'Trivia relámpago', d: 'Preguntas con 4 opciones. Más rápido, más puntos.', glyph: '?', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
-  { id: 'rosco', name: 'El Rosco', d: 'De la A a la Z contra el reloj, dos equipos.', glyph: 'A·Z', c: 'c1', tags: ['Equipos', 'Pantalla'] },
-  { id: 'feud', name: '100 chilenos dijeron', d: 'Adivinen las respuestas más populares de la encuesta.', glyph: '100', c: 'c2', tags: ['Equipos', 'Pantalla'] },
-  { id: 'imp', name: 'El Impostor', d: 'Todos saben la palabra menos uno. ¿Quién miente?', glyph: '¿?', c: 'c3', tags: ['Celulares', 'Pasar el celular'] },
-  { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Celulares', 'Un dispositivo'] },
-  { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Celulares', 'Un dispositivo'] },
-  { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
-  { id: 'basta', name: 'Basta', d: 'Sale una letra y a llenar categorías. El primero que termina grita ¡BASTA!', glyph: 'B', c: 'c3', tags: ['Celulares', 'Un dispositivo'] },
-  { id: 'feria', name: 'Feria de cachureos', d: 'Todos cambian cartas a gritos al mismo tiempo. Junta 9 iguales y toca la campana.', glyph: '9', c: 'c2', tags: ['Celulares', '3 a 10'] },
-  { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Celulares', 'Spotify'] },
+  { id: 'trivia', name: 'Trivia relámpago', d: 'Preguntas con 4 opciones. Más rápido, más puntos.', glyph: '?', c: 'c0', tags: ['Con sala', 'Sin sala'] },
+  { id: 'rosco', name: 'El Rosco', d: 'De la A a la Z contra el reloj, dos equipos.', glyph: 'A·Z', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
+  { id: 'feud', name: '100 chilenos dijeron', d: 'Adivinen las respuestas más populares de la encuesta.', glyph: '100', c: 'c2', tags: ['Con sala', 'Sin sala', '2 equipos'] },
+  { id: 'imp', name: 'El Impostor', d: 'Todos saben la palabra menos uno. ¿Quién miente?', glyph: '¿?', c: 'c3', tags: ['Con sala', 'Sin sala'] },
+  { id: 'wave', name: 'Onda', d: 'Una pista, un dial oculto. Lean la mente del psíquico.', glyph: '◠', c: 'c2', tags: ['Con sala', 'Sin sala'] },
+  { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Con sala', 'Sin sala'] },
+  { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Con sala', 'Sin sala'] },
+  { id: 'basta', name: 'Basta', d: 'Sale una letra y a llenar categorías. El primero que termina grita ¡BASTA!', glyph: 'B', c: 'c3', tags: ['Con sala', 'Sin sala'] },
+  { id: 'feria', name: 'Feria de cachureos', d: 'Todos cambian cartas a gritos al mismo tiempo. Junta 9 iguales y toca la campana.', glyph: '9', c: 'c2', tags: ['Solo con sala', '3 a 10'] },
+  { id: 'song', name: 'Adivina la canción', d: 'Tú pones Spotify; el juego lleva el buzzer, los años y el puntaje.', glyph: '♪', c: 'c1', tags: ['Con sala', 'Sin sala', 'Spotify'] },
 ];
 
 VIEWS.menu = () => {
