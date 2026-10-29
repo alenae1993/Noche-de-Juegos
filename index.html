@@ -174,6 +174,31 @@ a{color:var(--sun)}
 input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;background:none}
 .yr{font-family:var(--f-display);font-size:3.4rem;color:var(--sun);text-align:center}
 
+.dgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.dgrid2 input[type=file]{width:100%;font-size:.85rem}
+.hand{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.hand img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;display:block}
+.hcard{padding:0;border-radius:12px;border:4px solid transparent;background:var(--stage-3);aspect-ratio:2/3;overflow:hidden;display:grid;place-items:center}
+.hcard img{border-radius:8px}
+.hcard.on{border-color:var(--sun);transform:translateY(-4px);box-shadow:0 6px 0 rgba(0,0,0,.3)}
+.hcard[disabled]{opacity:1}
+.dbanner{background:var(--stage-3);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:6px;border-left:6px solid var(--sun)}
+.dbanner.sm{padding:8px 12px}
+.dstep{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--sun)}
+.dclue{font-family:var(--f-display);font-size:clamp(1.4rem,4vw,2.4rem);color:var(--ink);text-align:center;margin:0}
+.dtable{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(45%,170px),1fr));gap:12px}
+.dcard{margin:0;position:relative;display:flex;flex-direction:column;gap:6px;background:var(--stage-3);border-radius:14px;padding:6px;border:4px solid transparent}
+.dcard img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;display:block}
+.dcard.nar{border-color:var(--sun)}
+.dcard figcaption{display:flex;flex-direction:column;gap:2px;padding:0 4px 4px}
+.dnum{position:absolute;top:10px;left:10px;width:40px;height:40px;border-radius:50%;background:var(--sun);color:#2a1600;font-family:var(--f-display);font-size:1.3rem;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.dtrack{display:grid;grid-template-columns:auto minmax(60px,auto) 1fr auto auto;gap:10px;align-items:center}
+.dbar{height:12px;border-radius:999px;background:var(--stage-3);overflow:hidden}
+.dbar div{height:100%;border-radius:999px}
+.dtut{min-height:110px;display:grid;place-items:center}
+.ccard{width:64px;height:96px;border-radius:10px;background:var(--stage-3);border:3px solid var(--line);display:inline-grid;place-items:center;font-family:var(--f-display);font-size:1.4rem;color:var(--ink)}
+.ccard.hl{border-color:var(--sun);background:color-mix(in srgb,var(--sun) 25%,var(--stage-3))}
+.dvote{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
 .geo-media{display:flex;justify-content:center}
 .geo-flag{width:min(100%,360px);aspect-ratio:4/3;object-fit:contain;border-radius:10px;box-shadow:0 0 0 2px var(--line)}
 .geo-flag.sm{width:120px}
@@ -1160,7 +1185,7 @@ async function peerPhone(code) {
 const NET_ERR = { 'peer-unavailable': 'No existe una sala con ese código. Revisa las letras.', 'timeout': 'La sala no respondió. Revisa el código y que ambos tengan internet.', 'sin-internet': 'No se pudo cargar la conexión. Revisa tu internet.', 'network': 'Problema de red. Intenta de nuevo.', 'browser-incompatible': 'Este navegador no permite la conexión directa.' };
 const netMsg = e => NET_ERR[e && e.code] || ('Error de conexión (' + ((e && e.code) || 'desconocido') + ').');
 
-const P = { dm: {}, bAns: {}, st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
+const P = { imgs: {}, dm: {}, bAns: {}, st: null, sig: '', me: null, host: false, sent: {}, strokes: [], cur: null, sid: 0, clr: 0, pen: 0, gn: 0, peek: false, at: 0 };
 
 async function joinRoom(code, role) {
   if (NR) { try { await NR.leave(); } catch (e) {} NR = null; }
@@ -1202,6 +1227,7 @@ function onHostPeers(ch) {
     if (g && g.id === 'draw' && p.presence.dr && p.presence.dr.k === g.key && g.drawer && p.peer === g.drawer.id) drawIngest(p.presence.dr);
     if (g && g.id === 'tel' && p.presence.dr && p.presence.dr.k === g.key) telIngest(p.peer, p.presence.dr);
     if (g && g.id === 'tel' && p.presence.need === g.key) GAMES.tel.resend(p.peer);
+    if (g && g.id === 'dix' && Array.isArray(p.presence.needImg) && p.presence.nk && g.needSeen && g.needSeen[p.peer] !== p.presence.nk) { g.needSeen[p.peer] = p.presence.nk; GAMES.dix.resendNeed(p.peer, p.presence.needImg.map(String)); }
   }
   if (ch.joined.length || ch.left.length) { if (lastPub) pub(lastPub); render(); }
   else if (S.view !== 'game') render();
@@ -1320,6 +1346,7 @@ const GAME_LIST = [
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Con sala', 'Sin sala'] },
   { id: 'geo', name: 'Banderas y mapas', d: 'Adivina el país por su bandera, su silueta, el mapa o su capital.', glyph: '⚑', c: 'c2', tags: ['Con sala', 'Sin sala'] },
+  { id: 'dix', name: 'Imaginario', d: 'Da una pista sobre una carta y confunde a los demás. Basado en Dixit, con tus propias cartas.', glyph: '✦', c: 'c3', tags: ['Solo con sala', '3 a 8', 'Tus cartas'] },
   { id: 'tabu', name: 'Tabú', d: 'Describe la palabra sin decir ninguna de las prohibidas.', glyph: '⊘', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
   { id: 'hang', name: 'Ahorcado', d: 'Adivinen la palabra letra por letra antes de que se complete el monito.', glyph: 'A_', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'cham', name: 'Chamullo', d: 'Inventa una respuesta falsa creíble y descubre cuál es el dato real.', glyph: '¿!', c: 'c3', tags: ['Solo con sala', '2 o más'] },
@@ -2201,15 +2228,26 @@ async function dmSend(to, obj) {
   if (!NR) return;
   if (TRANSPORT === 'peer') { NR.dm && NR.dm(to, obj); return; }
   const str = JSON.stringify(obj), id = Math.random().toString(36).slice(2, 8), size = 2800, n = Math.max(1, Math.ceil(str.length / size));
-  for (let i = 0; i < n; i++) {
-    try { await NR.emit('dm', { to, id, i, n, c: str.slice(i * size, (i + 1) * size) }); }
-    catch (e) { if (e && e.code === 'not_permitted') { S.dmErr = true; render(); return; } }
-    await new Promise(r => setTimeout(r, 40));
+  for (let i = 0; i < n; i++) DMQ.push({ to, id, i, n, c: str.slice(i * size, (i + 1) * size) });
+  dmPump();
+}
+// cola única para no pasar el límite de mensajes por segundo de la sala
+const DMQ = []; let dmPumping = false;
+async function dmPump() {
+  if (dmPumping) return; dmPumping = true;
+  while (DMQ.length && NR) {
+    const m = DMQ.shift();
+    try { await NR.emit('dm', m); } catch (e) { if (e && e.code === 'not_permitted') { S.dmErr = true; DMQ.length = 0; render(); break; } }
+    await new Promise(r => setTimeout(r, 35));
   }
+  dmPumping = false;
 }
 function dmListen() {
   if (!NR) return;
-  const handle = obj => { if (obj && obj.k) { P.dm[obj.k] = obj; render(); } };
+  const handle = obj => {
+    if (obj && obj.t === 'img' && obj.id && typeof obj.src === 'string' && obj.src.startsWith('data:image/')) { P.imgs[obj.id] = obj.src; clearTimeout(P.imgT); P.imgT = setTimeout(render, 120); return; }
+    if (obj && obj.k) { P.dm[obj.k] = obj; render(); }
+  };
   if (TRANSPORT === 'peer') { NR.onDm && NR.onDm(handle); return; }
   NR.on('dm', msg => {
     const d = msg.data; if (!d || d.to !== P.me || typeof d.c !== 'string' || typeof d.id !== 'string') return;
@@ -2497,6 +2535,294 @@ GAMES.tel = {
   },
 };
 
+// ===================== IMAGINARIO (tipo Dixit) =====================
+// Cartas propias: se cargan en la pantalla principal, se guardan en el navegador (IndexedDB) y nunca se publican.
+let CARDS = [];               // [{id, tv: Blob, th: Blob}]
+const CARD_URL = {};          // id -> objectURL (tele)
+const CARD_TH = {};           // id -> dataURL miniatura (para enviar a celulares)
+let cardsLoaded = false, cardsBusy = '', cardsNoDB = false;
+const CDB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => {
+      let r; try { r = indexedDB.open('noche-cartas', 1); } catch (e) { return rej(e); }
+      r.onupgradeneeded = () => r.result.createObjectStore('cards', { keyPath: 'id' });
+      r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error);
+    });
+  },
+  async run(mode, fn) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('cards', mode); const st = tx.objectStore('cards'); const out = fn(st); tx.oncomplete = () => res(out && out.result); tx.onerror = () => rej(tx.error); }); },
+  all() { return this.run('readonly', st => st.getAll()); },
+  put(list) { return this.run('readwrite', st => { list.forEach(x => st.put(x)); }); },
+  clear() { return this.run('readwrite', st => { st.clear(); }); },
+};
+async function dixLoad() {
+  if (cardsLoaded) return; cardsLoaded = true;
+  try { const all = await CDB.all(); CARDS = all || []; CARDS.forEach(c => { CARD_URL[c.id] = URL.createObjectURL(c.tv); }); } catch (e) { cardsNoDB = true; }
+  render();
+}
+const loadImg = blob => new Promise((res, rej) => { const u = URL.createObjectURL(blob); const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('No es una imagen')); i.src = u; });
+function scaleTo(img, sx, sy, sw, sh, maxW, q) {
+  const r = Math.min(1, maxW / sw); const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(sw * r)); c.height = Math.max(1, Math.round(sh * r));
+  c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(b => res(b), 'image/jpeg', q));
+}
+let cardSeq = 0;
+const newCardId = () => 'k' + (Date.now() % 1e7).toString(36) + (cardSeq++).toString(36);
+async function makeCard(img, sx, sy, sw, sh) { return { id: newCardId(), tv: await scaleTo(img, sx, sy, sw, sh, 640, 0.82), th: await scaleTo(img, sx, sy, sw, sh, 220, 0.62) }; }
+async function addCards(list) {
+  if (!list.length) return;
+  CARDS.push(...list); list.forEach(c => { CARD_URL[c.id] = URL.createObjectURL(c.tv); });
+  try { await CDB.put(list); } catch (e) { cardsNoDB = true; }
+}
+const blobToData = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
+async function cardThumb(id) { if (CARD_TH[id]) return CARD_TH[id]; const c = CARDS.find(x => x.id === id); if (!c) return ''; CARD_TH[id] = await blobToData(c.th); return CARD_TH[id]; }
+const isImgName = n => /\.(jpe?g|png|webp|gif|bmp)$/i.test(n);
+async function importFiles(files) {
+  const imgs = [...files].filter(f => (f.type || '').startsWith('image/') || isImgName(f.name || ''));
+  let n = 0;
+  for (const f of imgs) { cardsBusy = `Procesando ${++n} de ${imgs.length}…`; render(); try { const img = await loadImg(f); await addCards([await makeCard(img, 0, 0, img.naturalWidth, img.naturalHeight)]); } catch (e) {} }
+  cardsBusy = ''; S.cardMsg = `${n} cartas agregadas.`; render();
+}
+let jszipP = null;
+function loadJSZip() { if (window.JSZip) return Promise.resolve(); if (jszipP) return jszipP; jszipP = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = res; s.onerror = () => { jszipP = null; rej(new Error('zip')); }; document.head.appendChild(s); }); return jszipP; }
+async function importZip(file) {
+  try { cardsBusy = 'Abriendo el zip…'; render(); await loadJSZip(); const zip = await window.JSZip.loadAsync(file);
+    const entries = Object.values(zip.files).filter(e => !e.dir && isImgName(e.name) && !/(^|\/)__MACOSX\//.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+    const blobs = []; for (const e of entries) blobs.push(new File([await e.async('blob')], e.name.split('/').pop(), { type: 'image/' + (e.name.split('.').pop().toLowerCase().replace('jpg', 'jpeg')) }));
+    await importFiles(blobs);
+  } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude abrir el zip. Prueba descomprimiéndolo y cargando la carpeta.'; render(); }
+}
+async function importSheet(file, cols, rows, count) {
+  try {
+    cardsBusy = 'Recortando la hoja…'; render(); const img = await loadImg(file);
+    const w = img.naturalWidth / cols, h = img.naturalHeight / rows; const out = []; let k = 0;
+    for (let r = 0; r < rows && k < count; r++) for (let c = 0; c < cols && k < count; c++, k++) { cardsBusy = `Recortando carta ${k + 1} de ${count}…`; render(); out.push(await makeCard(img, c * w, r * h, w, h)); }
+    await addCards(out); cardsBusy = ''; S.cardMsg = `${out.length} cartas recortadas de la hoja.`; render();
+  } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude leer esa imagen.'; render(); }
+}
+async function makeSampleCards(n = 84) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    cardsBusy = `Creando cartas de prueba ${i + 1} de ${n}…`; if (i % 6 === 0) render();
+    const c = document.createElement('canvas'); c.width = 400; c.height = 600; const x = c.getContext('2d');
+    const h1 = Math.random() * 360, h2 = (h1 + 60 + Math.random() * 120) % 360;
+    const gr = x.createLinearGradient(0, 0, 400, 600); gr.addColorStop(0, `hsl(${h1} 70% 55%)`); gr.addColorStop(1, `hsl(${h2} 65% 30%)`); x.fillStyle = gr; x.fillRect(0, 0, 400, 600);
+    for (let j = 0; j < 7; j++) { x.beginPath(); x.fillStyle = `hsla(${(h1 + j * 47) % 360} 80% ${40 + Math.random() * 40}% / .55)`; const r = 20 + Math.random() * 110; x.arc(Math.random() * 400, Math.random() * 600, r, 0, Math.PI * 2); x.fill(); }
+    x.fillStyle = 'rgba(255,255,255,.9)'; x.font = 'bold 40px sans-serif'; x.textAlign = 'center'; x.fillText('Prueba ' + (i + 1), 200, 560);
+    out.push(await makeCard(c, 0, 0, 400, 600));
+  }
+  await addCards(out); cardsBusy = ''; S.cardMsg = `${n} cartas de prueba creadas. Bórralas cuando cargues las tuyas.`; render();
+}
+
+VIEWS.cards = () => {
+  const n = CARDS.length;
+  return `${topBar()}
+  <div class="stagebox">
+    <div class="spread"><h2>Mis cartas para Imaginario</h2><span class="pill">${n} cartas</span></div>
+    <p class="muted">Las cartas se guardan solo en este navegador y nunca se publican. Cárgalas en el dispositivo que va a ser la pantalla principal; durante el juego, la pantalla envía a cada celular las cartas de su mano.</p>
+    ${cardsNoDB ? `<p class="note">Este navegador no permite guardar las cartas (¿modo incógnito?). Funcionan mientras no cierres la página.</p>` : ''}
+    ${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}
+    <div class="dgrid2">
+      <label class="panel stack"><b>Imágenes sueltas</b><span class="small muted">Elige una o muchas imágenes (JPG, PNG). Una imagen = una carta.</span><input type="file" id="cf-files" accept="image/*" multiple data-file="files"></label>
+      <label class="panel stack"><b>Una carpeta completa</b><span class="small muted">Elige la carpeta donde tienes las cartas (funciona en Chrome y Edge de computador).</span><input type="file" id="cf-dir" webkitdirectory multiple data-file="files"></label>
+      <label class="panel stack"><b>Un archivo zip</b><span class="small muted">Con las imágenes de las cartas adentro.</span><input type="file" id="cf-zip" accept=".zip,application/zip" data-file="zip"></label>
+      <div class="panel stack"><b>Hoja de Tabletop Simulator</b><span class="small muted">Una imagen con muchas cartas en grilla. Indica columnas, filas y cuántas cartas trae (normalmente 10 × 7 con 69 cartas, porque la última casilla es el reverso).</span>
+        <div class="row"><label class="small">Columnas <input type="number" id="cs-c" min="1" max="20" value="10" style="width:70px"></label><label class="small">Filas <input type="number" id="cs-r" min="1" max="20" value="7" style="width:70px"></label><label class="small">Cartas <input type="number" id="cs-n" min="1" max="400" value="69" style="width:80px"></label></div>
+        <input type="file" id="cf-sheet" accept="image/*" data-file="sheet"></div>
+    </div>
+    ${S.cardMsg ? `<p class="note">${esc(S.cardMsg)}</p>` : ''}
+    <div class="row"><button class="btn alt" data-a="cardsSample">Crear 84 cartas de prueba</button><button class="btn bad" data-a="cardsClear" ${n ? '' : 'disabled'}>Borrar todas las cartas</button><button class="btn" data-a="back">Listo</button></div>
+    ${n ? `<span class="eyebrow">Vista previa${n > 36 ? ' (primeras 36)' : ''}</span><div class="hand" style="grid-template-columns:repeat(auto-fill,minmax(90px,1fr))">${CARDS.slice(0, 36).map(c => `<img src="${CARD_URL[c.id]}" alt="Carta">`).join('')}</div>` : ''}
+  </div>`;
+};
+
+const DIX_STEPS = ['', 'El narrador elige', 'Todos eligen una carta', 'Votación', 'Puntos'];
+const DIX_TUT = [
+  { t: 'En cada ronda hay un narrador', p: 'Le toca a una persona distinta cada ronda. Cada jugador tiene en su celular una mano de cartas con dibujos.' },
+  { t: 'El narrador elige una carta y da una pista', p: 'Puede ser una palabra, una frase, un sonido o el título de una canción. Lo difícil: la pista no puede ser ni muy obvia ni muy rara, porque si todos o nadie adivinan, el narrador no suma.' },
+  { t: 'Los demás eligen una carta de su mano', p: 'Cada uno busca en su celular la carta que mejor calce con la pista del narrador. La idea es engañar: que los demás crean que tu carta es la del narrador.' },
+  { t: 'Las cartas se mezclan y se vota', p: 'Todas las cartas aparecen numeradas en la tele. Cada uno vota en su celular cuál cree que es la del narrador. El narrador no vota y nadie puede votar por su propia carta.' },
+  { t: 'Puntos', p: 'Si algunos encontraron la carta del narrador (pero no todos), el narrador y quienes acertaron ganan 3. Si todos o nadie la encontraron, el narrador gana 0 y los demás 2. Además, cada uno gana 1 punto por cada voto que recibió su carta. Gana quien llega primero a 30.' },
+];
+function dixHelpText(ph, g) {
+  return ({ story: 'El narrador elige en su celular una carta de su mano y la pista. Los demás esperan mirando su mano.', pick: `Cada jugador, menos el narrador, elige ${g.per === 2 ? 'dos cartas' : 'una carta'} de su mano que calce con la pista, para confundir a los demás.`,
+    vote: 'Miren las cartas en la tele y voten en el celular cuál creen que es la del narrador. El narrador no vota y nadie puede votar por su propia carta.',
+    score: 'Si algunos encontraron la carta del narrador: narrador y acertadores +3. Si todos o nadie: narrador 0 y el resto +2. Cada uno suma +1 por cada voto que recibió su carta.' })[ph] || '';
+}
+GAMES.dix = {
+  start() {
+    if (S.mode !== 'host') { newGame('dix', { ph: 'nolocal' }); pub({ t: 'wait' }); render(); return; }
+    newGame('dix', { ph: 'setup', tut: true }); pub({ t: 'wait', msg: 'Preparando Imaginario' }); dixLoad(); render();
+  },
+  narr() { const g = S.g; return g.players[g.ni % g.players.length]; },
+  begin() {
+    const g = S.g, r = hostPlayers().slice(0, 8);
+    if (r.length < 3) { g.warn = 'Imaginario se juega de 3 a 8 personas. Faltan jugadores conectados.'; render(); return; }
+    g.players = r; g.hand = r.length === 3 ? 7 : 6; g.per = r.length === 3 ? 2 : 1;
+    const need = r.length * g.hand + r.length * g.per * 2;
+    if (CARDS.length < need) { g.warn = `Con ${r.length} jugadores se necesitan al menos ${need} cartas y hay ${CARDS.length}. Carga más en "Mis cartas".`; render(); return; }
+    g.warn = ''; g.deck = shuffle(CARDS.map(c => c.id)); g.hands = {}; g.sent = {}; g.needSeen = {};
+    g.players.forEach(p => { g.hands[p.id] = g.deck.splice(0, g.hand); g.sent[p.id] = new Set(); });
+    g.score = {}; g.players.forEach(p => g.score[p.id] = 0);
+    g.ni = 0; g.round = 0; g.help = false;
+    if (g.tut) { nextKey(); g.ph = 'tut'; g.slide = 0; this.pub(); render(); } else this.round();
+    g.players.forEach(p => this.sendImgs(p.id, g.hands[p.id]));
+  },
+  async sendImgs(pid, ids, force) {
+    const g = S.g; if (!g || !g.sent || !g.sent[pid]) return;
+    for (const id of ids) { if (!force && g.sent[pid].has(id)) continue; g.sent[pid].add(id); const src = await cardThumb(id); if (src) dmSend(pid, { t: 'img', id, src }); }
+  },
+  tutNext() { const g = S.g; if (g.slide < DIX_TUT.length - 1) { g.slide++; render(); } else this.round(); },
+  round() { const g = S.g; nextKey(); g.round++; g.ph = 'story'; g.story = null; g.picks = {}; g.votes = {}; g.table = null; g.res = null; g.help = false; this.pub(); render(); },
+  others() { const n = this.narr(); return S.g.players.filter(p => p.id !== n.id); },
+  onAnswer(p, a) {
+    const g = S.g, v = a.v; if (!v || !g.hands || !g.hands[p.id]) return; const hand = g.hands[p.id]; const nar = this.narr();
+    if (v.op === 'story' && g.ph === 'story' && p.id === nar.id && hand.includes(v.card)) {
+      g.story = { card: v.card, clue: String(v.clue || '').trim().replace(/\s+/g, ' ').slice(0, 80) };
+      hand.splice(hand.indexOf(v.card), 1); g.ph = 'pick'; this.pub(); render(); return;
+    }
+    if (v.op === 'pick' && g.ph === 'pick' && p.id !== nar.id && !g.picks[p.id] && Array.isArray(v.cards)) {
+      const cs = [...new Set(v.cards)]; if (cs.length !== g.per || !cs.every(c => hand.includes(c))) return;
+      g.picks[p.id] = cs; cs.forEach(c => hand.splice(hand.indexOf(c), 1));
+      if (this.others().every(o => g.picks[o.id])) return this.toVote();
+      this.pub(); render(); return;
+    }
+    if (v.op === 'vote' && g.ph === 'vote' && p.id !== nar.id && g.votes[p.id] === undefined) {
+      const n = +v.n; const t = g.table[n]; if (!t || t.owner === p.id) return;
+      g.votes[p.id] = n; if (this.others().filter(o => g.picks[o.id]).every(o => g.votes[o.id] !== undefined)) return this.score();
+      this.pub(); render();
+    }
+  },
+  toVote() {
+    const g = S.g; const nar = this.narr(); if (!g.story) return;
+    const list = [{ id: g.story.card, owner: nar.id }]; Object.entries(g.picks).forEach(([pid, cs]) => cs.forEach(id => list.push({ id, owner: pid })));
+    g.table = shuffle(list); g.ph = 'vote'; this.pub(); render();
+  },
+  skipWait() { const g = S.g; if (g.ph === 'pick' && Object.keys(g.picks).length >= 1) this.toVote(); else if (g.ph === 'vote' && Object.keys(g.votes).length >= 1) this.score(); },
+  score() {
+    const g = S.g; const nar = this.narr(); const nm = id => (g.players.find(p => p.id === id) || {}).name || '?';
+    const voters = Object.keys(g.votes); const ni = g.table.findIndex(t => t.owner === nar.id);
+    const right = voters.filter(v => g.votes[v] === ni); const delta = {}; g.players.forEach(p => delta[p.id] = 0); const lines = [];
+    if (right.length === 0 || right.length === voters.length) {
+      lines.push({ who: nar.id, t: `${nar.name} +0: ${right.length ? 'todos' : 'nadie'} encontró su carta (la pista fue ${right.length ? 'muy obvia' : 'muy difícil'}).` });
+      voters.forEach(v => { delta[v] += 2; lines.push({ who: v, t: `${nm(v)} +2: como ${right.length ? 'todos' : 'nadie'} acertó, el resto gana 2.` }); });
+    } else {
+      delta[nar.id] += 3; lines.push({ who: nar.id, t: `${nar.name} +3: algunos encontraron su carta, pero no todos.` });
+      right.forEach(v => { delta[v] += 3; lines.push({ who: v, t: `${nm(v)} +3: encontró la carta de ${nar.name}.` }); });
+    }
+    g.table.forEach((t, i) => { if (t.owner === nar.id) return; const fooled = voters.filter(v => g.votes[v] === i); if (fooled.length) { delta[t.owner] += fooled.length; lines.push({ who: t.owner, t: `${nm(t.owner)} +${fooled.length}: ${fooled.map(nm).join(' y ')} ${fooled.length > 1 ? 'votaron' : 'votó'} por su carta.` }); } });
+    Object.entries(delta).forEach(([id, d]) => { g.score[id] += d; if (d) addPts(nm(id), d * 10); });
+    g.res = { delta, lines }; const top = Math.max(...Object.values(g.score));
+    g.ph = 'score'; g.over = top >= 30; this.pub(); render();
+  },
+  next() {
+    const g = S.g; if (g.over) { g.ph = 'end'; this.pub(); render(); return; }
+    let short = false;
+    g.players.forEach(p => { const h = g.hands[p.id]; const add = []; while (h.length < g.hand && g.deck.length) { const c = g.deck.shift(); h.push(c); add.push(c); } if (h.length < g.hand) short = true; this.sendImgs(p.id, add); });
+    if (short) { g.ph = 'end'; g.deckOut = true; this.pub(); render(); return; }
+    g.ni++; this.round();
+  },
+  resendNeed(pid, ids) { const g = S.g; if (!g.hands || !g.hands[pid]) return; this.sendImgs(pid, ids.filter(id => g.hands[pid].includes(id)), true); },
+  pub() {
+    const g = S.g; if (!g.players) return; const nar = this.narr(); const nm = id => (g.players.find(p => p.id === id) || {}).name || '?';
+    const own = {}; (g.table || []).forEach((t, i) => (own[t.owner] = own[t.owner] || []).push(i));
+    pub({ t: 'dix', k: g.key, ph: g.ph, r: g.round, nar: nar.id, nn: nar.name, clue: g.story ? g.story.clue : '', per: g.per, hands: g.hands, picked: Object.keys(g.picks || {}), voted: Object.keys(g.votes || {}), nt: g.table ? g.table.length : 0, own,
+      narCard: g.ph === 'score' || g.ph === 'end' ? (g.table || []).findIndex(t => t.owner === nar.id) : undefined,
+      delta: g.res ? g.res.delta : undefined, mine: g.res ? Object.fromEntries(g.players.map(p => [p.id, g.res.lines.filter(l => l.who === p.id).map(l => l.t)])) : undefined,
+      score: g.score, win: g.ph === 'end' ? nm(Object.entries(g.score).sort((a, b) => b[1] - a[1])[0][0]) : undefined });
+  },
+  view() {
+    const g = S.g;
+    if (g.ph === 'nolocal') return noLocalView('En Imaginario cada uno tiene su mano de cartas secreta en el celular.');
+    if (g.ph === 'setup') {
+      const n = hostPlayers().length;
+      return `<div class="stagebox">
+        <p>Juego de imaginación basado en Dixit. Cada ronda, un narrador da una pista sobre una carta y los demás intentan confundir con cartas parecidas. <b>Se juega con tus propias cartas</b>, que se cargan en esta pantalla.</p>
+        <div class="row"><span class="pill">${CARDS.length} cartas cargadas</span><span class="pill">${n} jugadores conectados (de 3 a 8)</span><button class="btn alt" data-a="cardsOpen">Mis cartas</button></div>
+        <div class="toggle ${g.tut ? 'on' : ''}" data-a="dixTut" role="switch" aria-checked="${g.tut}" tabindex="0"><span class="sw"></span><span>Mostrar la explicación paso a paso antes de empezar (recomendado si alguien no ha jugado)</span></div>
+        ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}
+        <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
+    }
+    const nar = this.narr(); const nm = id => (g.players.find(p => p.id === id) || {}).name || '?';
+    const track = `<div class="list">${g.players.slice().sort((a, b) => g.score[b.id] - g.score[a.id]).map(p => `<div class="dtrack"><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}</b><div class="dbar"><div style="width:${Math.min(100, g.score[p.id] / 30 * 100)}%;background:${p.color}"></div></div><span class="timer" style="font-size:1.2rem">${g.score[p.id]}</span>${g.res && g.res.delta[p.id] ? `<span class="pill">+${g.res.delta[p.id]}</span>` : ''}</div>`).join('')}</div>`;
+    if (g.ph === 'tut') {
+      const s = DIX_TUT[g.slide];
+      return `<div class="stagebox" style="text-align:center;align-items:center"><span class="eyebrow">Cómo se juega · ${g.slide + 1} de ${DIX_TUT.length}</span><h2>${esc(s.t)}</h2>
+        <div class="dtut">${dixTutArt(g.slide)}</div><p class="q" style="font-size:1.2rem;max-width:60ch">${esc(s.p)}</p>
+        <div class="row center"><button class="btn alt" data-a="g" data-f="round">Saltar explicación</button><button class="btn big" data-a="g" data-f="tutNext">${g.slide < DIX_TUT.length - 1 ? 'Siguiente' : '¡A jugar!'}</button></div></div>`;
+    }
+    const banner = (step, title, text) => `<div class="dbanner"><div class="spread"><span class="dstep">Ronda ${g.round} · Paso ${step} de 4</span><button class="btn alt" data-a="dixHelp">${g.help ? 'Ocultar ayuda' : '¿Cómo era?'}</button></div><h2>${title}</h2><p class="q" style="font-size:1.15rem">${text}</p>${g.help ? `<p class="note">${esc(dixHelpText(g.ph, g))}</p>` : ''}</div>`;
+    const waitChips = (list, done) => `<div class="chips">${list.map(p => `<span class="chip ${done(p) ? 'sel' : ''}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done(p) ? '✓' : '…'}</span>`).join('')}</div>`;
+    const clue = g.story && g.story.clue ? `<p class="dclue">“${esc(g.story.clue)}”</p>` : '';
+    if (g.ph === 'story') return `<div class="stagebox">${banner(1, `${esc(nar.name)} es el narrador`, `${esc(nar.name)} está eligiendo una carta en su celular y pensando una pista. Los demás pueden mirar su mano mientras esperan.`)}
+      ${g.round === 1 ? `<p class="note">Consejo para el narrador: una buena pista no es ni muy obvia ni muy rara. Por ejemplo, para una carta con un barco en una tormenta, "naufragio" es muy obvia; "lunes" puede ser perfecta.</p>` : ''}${track}</div>`;
+    if (g.ph === 'pick') return `<div class="stagebox">${banner(2, 'Todos eligen una carta', `La pista de ${esc(nar.name)} es:`)}${clue || `<p class="dclue">(${esc(nar.name)} la dice en voz alta)</p>`}
+      <p class="muted" style="text-align:center">Cada uno elige en su celular ${g.per === 2 ? 'dos cartas de su mano que calcen' : 'la carta de su mano que mejor calce'} con la pista, para que los demás crean que es la del narrador.</p>
+      ${waitChips(this.others(), p => g.picks[p.id])}<div class="row center"><button class="btn alt" data-a="g" data-f="skipWait">Seguir sin esperar a los que faltan</button></div></div>`;
+    const cardsGrid = showOwners => `<div class="dtable">${g.table.map((t, i) => { const vs = Object.keys(g.votes).filter(v => g.votes[v] === i); const isN = t.owner === nar.id;
+      return `<figure class="dcard ${showOwners && isN ? 'nar' : ''}"><span class="dnum">${i + 1}</span><img src="${CARD_URL[t.id] || ''}" alt="Carta ${i + 1}">${showOwners ? `<figcaption><b>${isN ? '★ ' : ''}${esc(nm(t.owner))}</b>${vs.length ? `<span class="small">Votos: ${vs.map(nm).map(esc).join(', ')}</span>` : '<span class="small muted">Sin votos</span>'}</figcaption>` : ''}</figure>`; }).join('')}</div>`;
+    if (g.ph === 'vote') { const voters = this.others().filter(o => g.picks[o.id]);
+      return `<div class="stagebox">${banner(3, '¡A votar!', `¿Cuál es la carta de ${esc(nar.name)}? Voten en el celular con el número. No se puede votar por la carta propia.`)}${clue}${cardsGrid(false)}
+      ${waitChips(voters, p => g.votes[p.id] !== undefined)}<div class="row center"><button class="btn alt" data-a="g" data-f="skipWait">Contar los votos que hay</button></div></div>`; }
+    if (g.ph === 'score') return `<div class="stagebox">${banner(4, 'Puntos de la ronda', `La carta de ${esc(nar.name)} era la número ${g.table.findIndex(t => t.owner === nar.id) + 1} (marcada con ★).`)}${clue}${cardsGrid(true)}
+      <div class="list">${g.res.lines.map(l => `<div class="li">${esc(l.t)}</div>`).join('')}</div>${track}
+      <div class="row center"><button class="btn big" data-a="g" data-f="next">${g.over ? 'Ver ganador' : 'Siguiente ronda'}</button></div></div>`;
+    const best = g.players.slice().sort((a, b) => g.score[b.id] - g.score[a.id])[0];
+    return `<div class="stagebox" style="text-align:center;align-items:center"><span class="eyebrow">${g.deckOut ? 'Se acabaron las cartas' : 'Llegó a 30 puntos'}</span><div class="big-word">${esc(best.name)}</div><p>gana Imaginario con ${g.score[best.id]} puntos</p>${track}<div class="row center"><button class="btn big" data-a="g" data-f="start">Jugar de nuevo</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+  },
+};
+function dixTutArt(i) {
+  const card = (cls = '', txt = '') => `<span class="ccard ${cls}">${txt}</span>`;
+  return [
+    `<div class="row center">${['A', 'B', 'C', 'D'].map((x, j) => `<span class="chip ${j === 0 ? 'sel' : ''}">${j === 0 ? 'Narrador' : 'Jugador'} ${x}</span>`).join('')}</div>`,
+    `<div class="row center">${card('hl', '?')}<span class="dclue" style="font-size:1.4rem">“lunes”</span></div>`,
+    `<div class="row center">${card('hl')}${card()}${card()}${card()}</div>`,
+    `<div class="row center">${[1, 2, 3, 4].map(n => card('', n)).join('')}</div>`,
+    `<div class="row center"><span class="chip sel">Algunos aciertan: +3</span><span class="chip">Todos o nadie: narrador 0, resto +2</span><span class="chip">+1 por voto a tu carta</span></div>`,
+  ][i];
+}
+
+PHONE.dix = st => {
+  const me = P.me, isNar = st.nar === me; const hand = (st.hands || {})[me] || [];
+  P.dsel = (P.dsel || []).filter(id => hand.includes(id));
+  if (P.dkey !== st.k + st.ph) { P.dkey = st.k + st.ph; P.dsel = []; }
+  const missing = hand.filter(id => !P.imgs[id]);
+  if (missing.length && NR && Date.now() - (P.needT || 0) > 6000 && Date.now() - P.at > 5000) { P.needT = Date.now(); NR.presence({ needImg: missing.slice(0, 7), nk: Date.now() }).catch(() => {}); }
+  if (missing.length) setTimeout(() => { if (P.st === st) render(); }, 6500);
+  const role = `<div class="dbanner sm"><span class="dstep">Ronda ${st.r} · ${isNar ? 'Eres el narrador' : 'Narrador: ' + esc(st.nn)}</span></div>`;
+  const handGrid = (selectable, max) => `<div class="hand">${hand.map(id => `<button class="hcard ${P.dsel.includes(id) ? 'on' : ''}" ${selectable ? `data-a="dixSel" data-id="${esc(id)}" data-max="${max}"` : 'disabled'}>${P.imgs[id] ? `<img src="${P.imgs[id]}" alt="Carta">` : '<span class="small muted">Cargando…</span>'}</button>`).join('')}</div>`;
+  const help = txt => `<p class="note">${txt}</p>`;
+  if (st.ph === 'tut') return `${role}<div class="secret"><h3>Mira la explicación en la pantalla</h3><p class="muted">Mientras tanto, esta es tu mano de cartas.</p></div>${handGrid(false)}`;
+  if (st.ph === 'story') {
+    if (isNar) return `${role}${help('<b>Paso 1 de 4:</b> toca una carta de tu mano y escribe tu pista (o dila en voz alta). Que no sea ni muy obvia ni muy rara.')}${handGrid(true, 1)}
+      <input id="dclue" maxlength="80" placeholder="Tu pista (opcional si la dices en voz alta)" autocomplete="off"><button class="btn big" data-a="dixStory" ${P.dsel.length === 1 ? '' : 'disabled'}>Elegir esta carta</button>`;
+    return `${role}${help(`<b>Paso 1 de 4:</b> ${esc(st.nn)} está eligiendo una carta y una pista. Mira tu mano mientras tanto; pronto te tocará elegir.`)}${handGrid(false)}`;
+  }
+  if (st.ph === 'pick') {
+    const clue = st.clue ? `<p class="dclue">“${esc(st.clue)}”</p>` : `<p class="dclue">(escucha la pista de ${esc(st.nn)})</p>`;
+    if (isNar) return `${role}${clue}${help('<b>Paso 2 de 4:</b> los demás están eligiendo sus cartas. No digas nada.')}`;
+    if ((st.picked || []).includes(me)) return `${role}${clue}<div class="secret"><h3>¡Listo!</h3><p class="muted">Esperando a los demás…</p></div>`;
+    return `${role}${clue}${help(`<b>Paso 2 de 4:</b> elige ${st.per === 2 ? '<b>dos cartas</b> de tu mano que calcen' : 'la carta de tu mano que mejor calce'} con la pista. Así los demás pueden confundirse y votar por la tuya.`)}${handGrid(true, st.per)}
+      <button class="btn big" data-a="dixPick" ${P.dsel.length === st.per ? '' : 'disabled'}>${st.per === 2 ? 'Usar estas cartas' : 'Usar esta carta'}</button>`;
+  }
+  if (st.ph === 'vote') {
+    const clue = st.clue ? `<p class="dclue">“${esc(st.clue)}”</p>` : '';
+    if (isNar) return `${role}${clue}${help('<b>Paso 3 de 4:</b> los demás están votando. ¡No pongas cara de nada!')}`;
+    if (!(st.picked || []).includes(me)) return `${role}<div class="secret"><h3>Esta ronda no jugaste carta</h3><p class="muted">Espera la siguiente.</p></div>`;
+    if ((st.voted || []).includes(me) || P.sent[st.k] !== undefined) return `${role}<div class="secret"><h3>Voto enviado</h3><p class="muted">Esperando a los demás…</p></div>`;
+    const mine = (st.own || {})[me] || [];
+    return `${role}${clue}${help(`<b>Paso 3 de 4:</b> mira las cartas en la tele. ¿Cuál es la de ${esc(st.nn)}? Tu carta es la ${mine.map(i => '#' + (i + 1)).join(' y ')}, así que no puedes votarla.`)}
+      <div class="dvote">${Array.from({ length: st.nt }, (_, i) => i).map(i => `<button class="btn big ${mine.includes(i) ? 'alt' : ''}" data-a="dixVote" data-v="${i}" ${mine.includes(i) ? 'disabled' : ''}>${i + 1}</button>`).join('')}</div>`;
+  }
+  if (st.ph === 'score' || st.ph === 'end') {
+    const d = (st.delta || {})[me] || 0; const lines = (st.mine || {})[me] || [];
+    return `${role}<div class="secret">${st.ph === 'end' ? `<span class="eyebrow">Fin del juego</span><h2>Ganó ${esc(st.win || '')}</h2>` : `<span class="eyebrow">Paso 4 de 4 · La carta del narrador era la #${(st.narCard || 0) + 1}</span><h2 style="color:var(--sun)">+${d}</h2>`}${lines.map(l => `<p class="small">${esc(l)}</p>`).join('')}<p>Total: <b>${(st.score || {})[me] || 0}</b> / 30</p></div>`;
+  }
+  return PHONE.wait(st);
+};
+
 // ---------- FERIA DE CACHUREOS (tipo Pit) ----------
 function ding() { try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const ac = ding.ac || (ding.ac = new C()); [880, 1320].forEach((f, i) => { const o = ac.createOscillator(), gn = ac.createGain(); o.frequency.value = f; o.type = 'triangle'; gn.gain.setValueAtTime(0.0001, ac.currentTime + i * .12); gn.gain.exponentialRampToValueAtTime(0.3, ac.currentTime + i * .12 + .02); gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + i * .12 + .6); o.connect(gn).connect(ac.destination); o.start(ac.currentTime + i * .12); o.stop(ac.currentTime + i * .12 + .65); }); } catch (e) {} }
 const feriaCard = (t, extra = '') => `<span class="fcard" style="background:${FERIA[t][2]}">${esc(FERIA[t][0])}<small>${FERIA[t][1]} pts</small>${extra}</span>`;
@@ -2581,7 +2907,7 @@ function feriaSend(v) { if (!NR || !P.st) return; P.gn++; NR.presence({ a: { k: 
 const ACT = {
   goBack() {
     const v = S.view;
-    if (v === 'scores' || v === 'pack') return ACT.back();
+    if (v === 'scores' || v === 'pack' || v === 'cards') return ACT.back();
     if (v === 'game') return ACT.menu();
     if (v === 'menu') return S.mode === 'host' ? ACT.lobby() : ACT.goLocal();
     if (v === 'hostLobby' || v === 'phone') return ACT.leave();
@@ -2655,6 +2981,19 @@ const ACT = {
   feudGuess() { const el = document.getElementById('fa'); const v = el ? el.value : ''; if (el) el.value = ''; GAMES.feud.guess(v); setTimeout(() => document.getElementById('fa')?.focus(), 0); },
   feudStrike() { GAMES.feud.strike(''); },
   feudTile(d) { GAMES.feud.tile(+d.i); },
+  // imaginario
+  cardsOpen() { S.prevView = S.view; S.view = 'cards'; S.cardMsg = ''; dixLoad(); render(); },
+  cardsSample() { if (!cardsBusy) makeSampleCards(84); },
+  async cardsClear() {
+    if (!S.cardConfirm) { S.cardConfirm = true; const b = document.querySelector('[data-a=cardsClear]'); if (b) b.textContent = 'Toca otra vez para borrar todo'; setTimeout(() => { S.cardConfirm = false; }, 3000); return; }
+    S.cardConfirm = false; CARDS.forEach(c => { try { URL.revokeObjectURL(CARD_URL[c.id]); } catch (e) {} delete CARD_URL[c.id]; delete CARD_TH[c.id]; }); CARDS = []; try { await CDB.clear(); } catch (e) {} S.cardMsg = 'Cartas borradas.'; render();
+  },
+  dixTut() { S.g.tut = !S.g.tut; render(); },
+  dixHelp() { S.g.help = !S.g.help; render(); },
+  dixSel(d) { const max = +d.max || 1; const i = P.dsel.indexOf(d.id); if (i >= 0) P.dsel.splice(i, 1); else { if (max === 1) P.dsel = []; if (P.dsel.length < max) P.dsel.push(d.id); } render(); },
+  dixStory() { if (P.dsel.length !== 1) return; const el = document.getElementById('dclue'); opSend({ op: 'story', card: P.dsel[0], clue: el ? el.value : '' }); },
+  dixPick() { if (!P.st || P.dsel.length !== P.st.per) return; opSend({ op: 'pick', cards: P.dsel.slice() }); },
+  dixVote(d) { if (!P.st) return; P.sent[P.st.k] = +d.v; opSend({ op: 'vote', n: +d.v }); render(); },
   // tabú
   tabuR(d) { S.g.rounds = +d.v; render(); }, tabuS(d) { S.g.secs = +d.v; render(); },
   tabuM(d) { GAMES.tabu.mark(d.v); },
@@ -2704,6 +3043,13 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); ACT[e.target.dataset.enter](e.target.dataset); }
   else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('toggle')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target; const kind = t.dataset && t.dataset.file; if (!kind || !t.files || !t.files.length || cardsBusy) return;
+  const files = [...t.files]; t.value = '';
+  if (kind === 'files') importFiles(files);
+  else if (kind === 'zip') importZip(files[0]);
+  else if (kind === 'sheet') { const v = id => Math.max(1, parseInt((document.getElementById(id) || {}).value, 10) || 1); importSheet(files[0], v('cs-c'), v('cs-r'), v('cs-n')); }
 });
 document.addEventListener('input', e => {
   const k = e.target.dataset && e.target.dataset.in; if (!k) return;
@@ -2841,7 +3187,7 @@ document.addEventListener('input', e => {
 });
 
 // ----- botón atrás del navegador / celular -----
-const HASH = { pack: 'mi-pack', home: '', localSetup: 'jugadores', hostLobby: 'sala', join: 'unirme', menu: 'menu', game: 'juego', scores: 'marcador', phone: 'celular' };
+const HASH = { cards: 'mis-cartas', pack: 'mi-pack', home: '', localSetup: 'jugadores', hostLobby: 'sala', join: 'unirme', menu: 'menu', game: 'juego', scores: 'marcador', phone: 'celular' };
 function syncHash() { const h = HASH[S.view] || ''; if (location.hash.slice(1) !== h) { try { location.hash = h; } catch (e) {} } }
 window.addEventListener('hashchange', () => {
   const h = location.hash.slice(1); const t = Object.keys(HASH).find(k => HASH[k] === h) || 'home';
@@ -2853,6 +3199,7 @@ window.addEventListener('hashchange', () => {
   if (t === 'join') return S.mode === 'phone' ? ACT.leave() : ACT.goJoin();
   if (t === 'scores') return ACT.scores();
   if (t === 'pack') return ACT.pack();
+  if (t === 'cards') return ACT.cardsOpen();
   if (t === 'game' && S.g) { S.view = 'game'; return render(); }
   if (t === 'phone' && S.mode === 'phone') { S.view = 'phone'; return render(); }
   syncHash();
