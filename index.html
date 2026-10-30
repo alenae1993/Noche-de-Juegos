@@ -2819,13 +2819,23 @@ async function addCards(list) {
   try { await CDB.put(list); } catch (e) { cardsNoDB = true; }
 }
 const blobToData = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
-async function cardThumb(id) { if (CARD_TH[id]) return CARD_TH[id]; const c = CARDS.find(x => x.id === id); if (!c) return ''; CARD_TH[id] = await blobToData(c.th); return CARD_TH[id]; }
+async function cardThumb(id) {
+  if (CARD_TH[id]) return CARD_TH[id]; const c = CARDS.find(x => x.id === id); if (!c) return '';
+  if (!c.th) { try { const img = await decodeImg(c.tv); c.th = await scaleTo(img, 0, 0, imgW(img), imgH(img), 220, 0.62); if (img.close) img.close(); CDB.put([c]).catch(() => {}); } catch (e) { return ''; } }
+  CARD_TH[id] = await blobToData(c.th); return CARD_TH[id];
+}
 const isImgName = n => /\.(jpe?g|png|webp|gif|bmp)$/i.test(n);
 async function importFiles(files, label = '') {
   const imgs = [...files].filter(f => (f.type || '').startsWith('image/') || isImgName(f.name || ''));
   let done = 0, ok = 0; const buf = [];
   await runPool(imgs, 4, async f => {
-    try { const img = await decodeImg(f); const card = await makeCard(img, 0, 0, imgW(img), imgH(img), f); if (img.close) img.close(); buf.push(card); ok++; } catch (e) {}
+    try {
+      let card;
+      // JPG/PNG livianos (como las cartas de Dixit): se guardan tal cual, sin redibujar. La miniatura para celulares se hace recién cuando se reparte.
+      if (/^image\/(jpeg|png|webp)$/i.test(f.type || '') && f.size < 400000) card = { id: newCardId(), tv: f, th: null };
+      else { const img = await decodeImg(f); card = await makeCard(img, 0, 0, imgW(img), imgH(img), f); if (img.close) img.close(); }
+      buf.push(card); ok++;
+    } catch (e) {}
     done++; setBusy(`${label}Procesando ${done} de ${imgs.length}…`);
     if (buf.length >= 30) await addCards(buf.splice(0));
   });
@@ -2989,7 +2999,7 @@ GAMES.dix = {
     g.score = {}; g.players.forEach(p => g.score[p.id] = 0);
     g.ni = 0; g.round = 0; g.help = false;
     if (g.tut) { nextKey(); g.ph = 'tut'; g.slide = 0; this.pub(); render(); } else this.round();
-    g.players.forEach(p => this.sendImgs(p.id, g.hands[p.id]));
+    runPool(Object.values(g.hands).flat(), 4, id => cardThumb(id)).then(() => g.players.forEach(p => this.sendImgs(p.id, g.hands[p.id])));
   },
   async sendImgs(pid, ids, force) {
     const g = S.g; if (!g || !g.sent || !g.sent[pid]) return;
