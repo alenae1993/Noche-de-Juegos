@@ -219,6 +219,14 @@ input[type=range]{width:100%;accent-color:var(--pink);padding:0;border:0;backgro
 .rcat.sm .rcatname{font-size:1.4rem}
 .rstars{color:var(--sun);letter-spacing:.05em}
 .rsteps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.mcard{font-family:var(--f-display);font-size:clamp(5rem,20vw,10rem);line-height:1;color:#1b1033;background:var(--ink);border-radius:22px;padding:18px 34px;min-width:2.2em;text-align:center;box-shadow:0 8px 0 var(--sun)}
+.mcard.bad{box-shadow:0 8px 0 var(--bad);background:color-mix(in srgb,var(--bad) 25%,var(--ink))}
+.mcard.empty{opacity:.3}
+.mstat{font-size:1.4rem;letter-spacing:.08em;color:var(--coral)}
+.mhand{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.mnum{font-family:var(--f-display);font-size:1.6rem;min-width:2.4em;text-align:center;padding:8px 10px;border-radius:12px;background:var(--stage-3)}
+.mnum.low{background:var(--sun);color:#2a1600}
+.buzz.mplay{background:var(--sun);color:#2a1600;box-shadow:0 10px 0 #b5801c;font-size:clamp(3rem,16vw,5rem)}
 .geo-media{display:flex;justify-content:center}
 .geo-flag{width:min(100%,360px);aspect-ratio:4/3;object-fit:contain;border-radius:10px;box-shadow:0 0 0 2px var(--line)}
 .geo-flag.sm{width:120px}
@@ -1520,6 +1528,7 @@ const GAME_LIST = [
   { id: 'draw', name: 'Dibuja y adivina', d: 'Uno dibuja, el resto adivina antes del tiempo.', glyph: '✎', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'who', name: '¿Quién es más probable?', d: 'Votación rápida sobre el grupo. Rompehielo puro.', glyph: '☝', c: 'c3', tags: ['Con sala', 'Sin sala'] },
   { id: 'dix', name: 'Imaginario', d: 'Da una pista sobre una carta y confunde a los demás. Basado en Dixit, con tus propias cartas.', glyph: '✦', c: 'c3', tags: ['Solo con sala', '3 a 8', 'Tus cartas'] },
+  { id: 'mind', name: 'La Mente', d: 'Cooperativo: jueguen sus números en orden sin decir ni una palabra.', glyph: '∞', c: 'c2', tags: ['Solo con sala', '2 a 8', 'Cooperativo'] },
   { id: 'tabu', name: 'Tabú', d: 'Describe la palabra sin decir ninguna de las prohibidas.', glyph: '⊘', c: 'c1', tags: ['Con sala', 'Sin sala', '2 equipos'] },
   { id: 'hang', name: 'Ahorcado', d: 'Adivinen la palabra letra por letra antes de que se complete el monito.', glyph: 'A_', c: 'c0', tags: ['Con sala', 'Sin sala'] },
   { id: 'cham', name: 'Chamullo', d: 'Inventa una respuesta falsa creíble y descubre cuál es el dato real.', glyph: '¿!', c: 'c3', tags: ['Solo con sala', '2 o más'] },
@@ -1703,6 +1712,30 @@ PHONE.tel = st => {
   if (st.s === 0) return `${head}<h3>Escribe una frase para empezar tu cadena</h3><input id="tt" maxlength="90" placeholder="Ej: Un perro manejando una micro" data-enter="telDone" autocomplete="off"><div class="row"><button class="btn alt" data-a="telIdea">Dame una idea</button><button class="btn big" data-a="telDone">Listo</button></div>`;
   AFTER.push(() => { const cv = document.getElementById('tp'); if (cv && task.prompt) drawStrokes(cv.getContext('2d'), task.prompt.strokes || [], cv.width); });
   return `${head}<h3>¿Qué es este dibujo?</h3><div class="canvas-box" style="max-width:360px"><canvas id="tp" width="600" height="600"></canvas></div><input id="tt" maxlength="90" placeholder="Descríbelo en una frase" data-enter="telDone" autocomplete="off"><button class="btn big" data-a="telDone">Listo</button>`;
+};
+PHONE.mind = st => {
+  const me = P.me, hand = (st.hands || {})[me] || []; const others = Object.entries(st.counts || {}).filter(([id]) => id !== me);
+  const head = `<div class="spread"><span class="pill">Nivel ${st.lvl} de ${st.of}</span><span class="mstat">${hearts(st.lives)}</span><span class="mstat" style="color:var(--sun)">${stars(st.stars)}</span></div>`;
+  const mine = `<div class="mhand">${hand.map((n, i) => `<span class="mnum ${i === 0 ? 'low' : ''}">${n}</span>`).join('') || '<span class="muted">Ya jugaste todas tus cartas</span>'}</div>`;
+  const others_ = `<p class="small muted" style="text-align:center">${others.map(([id, c]) => `${esc((st.names || {})[id] || '?')}: ${c} ${c === 1 ? 'carta' : 'cartas'}`).join(' · ')}</p>`;
+  const top = st.top ? `<p style="text-align:center">Última carta: <b style="font-size:1.4rem;color:${st.top.ok ? 'var(--sun)' : 'var(--bad)'}">${st.top.n}</b></p>` : '';
+  if (st.ph === 'sync') {
+    const ready = (st.ready || []).includes(me);
+    return `${head}${st.why === 'mistake' && st.log && st.log[0] ? `<p class="note">${esc(st.log[0])}</p>` : ''}<span class="eyebrow" style="text-align:center">Tus cartas (secreto)</span>${mine}
+      <p class="small muted" style="text-align:center">Concéntrate. Cuando estés listo, toca el botón. El nivel parte cuando todos estén listos.</p>
+      ${ready ? `<div class="secret"><h3>¡Listo!</h3><p class="muted">Esperando a los demás…</p></div>` : `<button class="btn big ok" data-a="mindReady">Estoy listo</button>`}`;
+  }
+  if (st.ph === 'play') {
+    const myVote = (st.sv || []).includes(me);
+    return `${head}${top}<span class="eyebrow" style="text-align:center">Tus cartas (secreto)</span>${mine}
+      ${hand.length ? `<button class="buzz mplay" data-a="mindPlay" data-v="${hand[0]}">${hand[0]}</button><p class="small muted" style="text-align:center">Tócala cuando sientas que es el momento. No hables de números.</p>` : `<div class="secret"><h3>Ya jugaste todas tus cartas</h3><p class="muted">Ahora depende de los demás.</p></div>`}
+      ${others_}
+      ${st.stars > 0 && hand.length ? `<button class="btn ${myVote ? '' : 'alt'}" data-a="mindStar" data-v="${myVote ? 0 : 1}">${myVote ? '★ Propusiste usar estrella (toca para retirar)' : '★ Proponer usar una estrella'}</button>${(st.sv || []).length && !myVote ? `<p class="small" style="text-align:center;color:var(--sun)">${(st.sv || []).map(id => esc((st.names || {})[id] || '?')).join(', ')} quiere usar una estrella. Si aceptas, cada uno descarta su carta más baja.</p>` : ''}` : ''}`;
+  }
+  if (st.ph === 'levelEnd') return `${head}<div class="secret"><h2 style="color:var(--ok)">¡Nivel ${st.lvl} superado!</h2>${st.reward ? `<p>Premio: <b>${st.reward}</b></p>` : ''}<p class="muted">Mira la pantalla.</p></div>`;
+  if (st.ph === 'won') return `<div class="secret"><h2 style="color:var(--ok)">¡Ganaron!</h2><p>Superaron los ${st.of} niveles.</p></div>`;
+  if (st.ph === 'lost') return `<div class="secret"><h2 style="color:var(--coral)">Sin vidas</h2><p>Llegaron al nivel ${st.lvl}.</p></div>`;
+  return PHONE.wait(st);
 };
 PHONE.feria = st => {
   const tot = st.tot ? (st.tot[S.pname] || 0) : 0;
@@ -3303,6 +3336,99 @@ GAMES.feria = {
       </div></div>`;
   },
 };
+// ---------- LA MENTE (tipo The Mind, cooperativo) ----------
+const MIND_LEVELS = { 2: 12, 3: 10, 4: 8 };
+const mindTarget = n => MIND_LEVELS[Math.min(4, Math.max(2, n))] - (n > 4 ? Math.min(3, n - 4) : 0); // con más de 4 jugadores, menos niveles
+const MIND_REWARD = { 2: 'star', 3: 'life', 5: 'star', 6: 'life', 8: 'star', 9: 'life' };
+const hearts = (n, max = 5) => '❤'.repeat(n) + '<span style="opacity:.25">' + '❤'.repeat(Math.max(0, max - n)) + '</span>';
+const stars = (n, max = 3) => '★'.repeat(n) + '<span style="opacity:.25">' + '★'.repeat(Math.max(0, max - n)) + '</span>';
+GAMES.mind = {
+  start() { if (S.mode !== 'host') { newGame('mind', { ph: 'nolocal' }); pub({ t: 'wait' }); render(); return; } newGame('mind', { ph: 'setup' }); pub({ t: 'wait', msg: 'Preparando La Mente' }); render(); },
+  begin() {
+    const g = S.g, r = hostPlayers().slice(0, 8);
+    if (r.length < 2) { g.warn = 'Se necesitan al menos 2 jugadores conectados.'; render(); return; }
+    g.warn = ''; g.players = r.map(p => ({ id: p.id, name: p.name, color: p.color }));
+    g.lives = Math.min(5, r.length); g.stars = 1; g.level = 0; g.target = mindTarget(r.length); g.log = [];
+    this.newLevel();
+  },
+  newLevel() {
+    const g = S.g; g.level++; nextKey();
+    const deck = shuffle(Array.from({ length: 100 }, (_, i) => i + 1)); g.hands = {};
+    g.players.forEach(p => { g.hands[p.id] = deck.splice(0, g.level).sort((a, b) => a - b); });
+    g.pile = []; g.last = null; g.ready = {}; g.starVotes = {}; g.reward = null; g.ph = 'sync'; g.syncWhy = 'level';
+    this.pub(); render();
+  },
+  name(id) { return (S.g.players.find(p => p.id === id) || {}).name || '?'; },
+  left() { return Object.values(S.g.hands).reduce((a, h) => a + h.length, 0); },
+  onAnswer(p, a) {
+    const g = S.g, v = a.v; if (!v || !g.hands || !g.hands[p.id]) return;
+    if (v.op === 'ready' && g.ph === 'sync') { g.ready[p.id] = true; if (g.players.every(x => g.ready[x.id] || !isOnline(x.id))) { g.ph = 'play'; g.ready = {}; this.pub(); render(); return; } this.pub(); render(); return; }
+    if (g.ph !== 'play') return;
+    if (v.op === 'play') {
+      const h = g.hands[p.id]; if (!h.length || +v.n !== h[0]) return;
+      const n = h.shift(); g.pile.push({ n, by: p.id }); g.last = { n, by: p.id, ok: true }; beep(520 + n * 6, 0.09, 'sine', 0.18);
+      // ¿alguien tenía una carta más baja? → se pierde una vida y se descartan esas cartas
+      const lower = []; Object.entries(g.hands).forEach(([id, hh]) => { while (hh.length && hh[0] < n) lower.push({ id, n: hh.shift() }); });
+      if (lower.length) {
+        g.last.ok = false; g.lives--; beep(160, 0.5, 'sawtooth', 0.2);
+        g.log.unshift(`Nivel ${g.level}: ${this.name(p.id)} jugó ${n}, pero ${lower.map(x => `${this.name(x.id)} tenía ${x.n}`).join(' y ')}. Se pierde una vida.`);
+        if (g.lives <= 0) { g.ph = 'lost'; this.pub(); render(); return; }
+        if (this.left()) { g.ph = 'sync'; g.syncWhy = 'mistake'; g.ready = {}; this.pub(); render(); return; }
+      }
+      if (!this.left()) return this.levelDone();
+      this.pub(); render(); return;
+    }
+    if (v.op === 'star') {
+      if (g.stars < 1) return; g.starVotes[p.id] = !!v.on;
+      if (g.players.filter(x => isOnline(x.id) && g.hands[x.id].length).every(x => g.starVotes[x.id])) this.useStar(); else { this.pub(); render(); }
+    }
+  },
+  useStar() {
+    const g = S.g; g.stars--; g.starVotes = {}; const shown = [];
+    Object.entries(g.hands).forEach(([id, h]) => { if (h.length) shown.push({ id, n: h.shift() }); });
+    g.log.unshift(`Nivel ${g.level}: se usó una estrella. Cartas descartadas: ${shown.map(x => `${this.name(x.id)} ${x.n}`).join(', ')}.`); ding();
+    g.starShown = shown; if (!this.left()) return this.levelDone();
+    this.pub(); render();
+  },
+  levelDone() {
+    const g = S.g; ding();
+    g.players.forEach(p => addPts(p.name, 50));
+    if (g.level >= g.target) { g.ph = 'won'; this.pub(); render(); return; }
+    const rw = MIND_REWARD[g.level]; g.reward = null;
+    if (rw === 'star' && g.stars < 3) { g.stars++; g.reward = 'una estrella'; }
+    if (rw === 'life' && g.lives < 5) { g.lives++; g.reward = 'una vida'; }
+    g.ph = 'levelEnd'; this.pub(); render();
+  },
+  pub() {
+    const g = S.g; if (!g.players) return;
+    const counts = {}; g.players.forEach(p => counts[p.id] = g.hands[p.id].length);
+    pub({ t: 'mind', k: g.key, ph: g.ph, lvl: g.level, of: g.target, lives: g.lives, stars: g.stars, hands: g.hands, counts, top: g.last, ready: Object.keys(g.ready || {}), sv: Object.keys(g.starVotes || {}).filter(k => g.starVotes[k]), why: g.syncWhy, reward: g.reward, log: g.log.slice(0, 1), names: Object.fromEntries(g.players.map(p => [p.id, p.name])) });
+  },
+  view() {
+    const g = S.g;
+    if (g.ph === 'nolocal') return noLocalView('En La Mente cada uno tiene sus números secretos en el celular.');
+    if (g.ph === 'setup') return `<div class="stagebox">
+      <h3>Cómo se juega</h3>
+      <ol class="rsteps"><li>Es <b>cooperativo</b>: ganan o pierden todos juntos.</li><li>En cada nivel, cada uno recibe en su celular tantos números secretos (del 1 al 100) como el nivel: en el nivel 1 un número, en el nivel 2 dos, y así.</li><li>Entre todos hay que jugar <b>todos los números en orden, de menor a mayor</b>, tocando "Jugar" en el celular. No hay turnos.</li><li><b>No se puede hablar de números ni hacer señas.</b> Solo se puede sentir el momento: si tienes el 12, juegas rápido; si tienes el 87, esperas.</li><li>Si alguien juega un número y otro tenía uno más bajo, se pierde una <b>vida</b>. Sin vidas, pierden.</li><li>Las <b>estrellas</b> sirven para destrabarse: si todos están de acuerdo, cada uno descarta su número más bajo.</li></ol>
+      <p class="muted">Con 2 jugadores se juegan 12 niveles, con 3 son 10 y con 4 son 8. Con más jugadores, menos niveles. Al pasar ciertos niveles se gana una vida o una estrella extra.</p>
+      ${g.warn ? `<p class="note">${esc(g.warn)}</p>` : ''}<div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar (${hostPlayers().length} jugadores)</button></div></div>`;
+    const status = `<div class="spread"><span class="pill">Nivel <b>${g.level}</b> de ${g.target}</span><span class="mstat">${hearts(g.lives)}</span><span class="mstat" style="color:var(--sun)">${stars(g.stars)}</span></div>`;
+    const players = `<div class="chips" style="justify-content:center">${g.players.map(p => `<span class="chip ${g.ph === 'sync' && g.ready[p.id] ? 'sel' : ''}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} <b>${'▮'.repeat(g.hands[p.id].length) || '✓'}</b>${isOnline(p.id) ? '' : ' <span class="small" style="color:var(--bad)">· sin conexión</span>'}</span>`).join('')}</div>`;
+    const top = g.last ? `<div class="mcard ${g.last.ok ? '' : 'bad'}">${g.last.n}</div><p class="muted">jugó ${esc(this.name(g.last.by))}</p>` : `<div class="mcard empty">·</div><p class="muted">Aún no se juega ninguna carta</p>`;
+    const log = g.log[0] ? `<p class="note">${esc(g.log[0])}</p>` : '';
+    if (g.ph === 'sync') return `<div class="stagebox" style="text-align:center;align-items:center">${status}
+      <h2>${g.syncWhy === 'mistake' ? '¡Ups! Se perdió una vida' : `Nivel ${g.level}: ${g.level} ${g.level === 1 ? 'carta' : 'cartas'} cada uno`}</h2>${g.syncWhy === 'mistake' ? log : ''}
+      <p class="q" style="font-size:1.2rem">Concéntrense. Cuando estén listos, cada uno toca <b>"Estoy listo"</b> en su celular.</p>${players}</div>`;
+    if (g.ph === 'play') return `<div class="stagebox" style="text-align:center;align-items:center">${status}${top}
+      <p class="small muted">Quedan ${this.left()} cartas en juego · Sin hablar de números</p>${players}
+      ${Object.values(g.starVotes).some(Boolean) ? `<p class="note">Propuesta de estrella: ${g.players.filter(p => g.starVotes[p.id]).map(p => esc(p.name)).join(', ')} ${g.stars ? 'quieren usarla. Se usa si todos aceptan desde su celular.' : ''}</p>` : ''}
+      ${log}</div>`;
+    if (g.ph === 'levelEnd') return `<div class="stagebox" style="text-align:center;align-items:center">${status}<h2 style="color:var(--ok)">¡Nivel ${g.level} superado!</h2>${g.reward ? `<p class="q" style="font-size:1.3rem">Premio: <span style="color:var(--sun)">${g.reward}</span></p>` : ''}<button class="btn big" data-a="g" data-f="newLevel">Ir al nivel ${g.level + 1}</button></div>`;
+    if (g.ph === 'won') return `<div class="stagebox" style="text-align:center;align-items:center">${status}<div class="big-word">¡Lo lograron!</div><p class="q" style="font-size:1.2rem">Superaron los ${g.target} niveles. Están en sintonía.</p><div class="row center"><button class="btn big" data-a="g" data-f="start">Jugar de nuevo</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+    return `<div class="stagebox" style="text-align:center;align-items:center"><div class="big-word" style="color:var(--coral)">Sin vidas</div><p class="q" style="font-size:1.2rem">Llegaron hasta el nivel ${g.level} de ${g.target}.</p>${log}<div class="row center"><button class="btn big" data-a="g" data-f="start">Intentar de nuevo</button><button class="btn alt" data-a="menu">Menú</button></div></div>`;
+  },
+};
+
 function feriaSend(v) { if (!NR || !P.st) return; P.gn++; NR.presence({ a: { k: P.st.k, v, s: P.gn } }).catch(() => {}); }
 
 // ===================== acciones =====================
@@ -3427,6 +3553,10 @@ const ACT = {
   bBasta() { bastaSend(true); try { navigator.vibrate && navigator.vibrate(120); } catch (e) {} },
   reconnect() { if (NR && NR.reconnect) NR.reconnect(); else if (S.code && S.pname) ACT.rejoin(); },
   async rejoin() { if (P.rejoining || S.mode !== 'phone') return; P.rejoining = true; const code = S.code; try { await joinRoom(code, 'phone'); NR.onPeers(onPhonePeers, () => phoneRejoinSoon()); dmListen(); NR.presence({ role: 'player', name: S.pname, color: S.pcolor }).catch(() => {}); S.err = ''; P.lostAt = 0; } catch (e) { S.err = netMsg(e); } P.rejoining = false; render(); },
+  // la mente
+  mindReady() { opSend({ op: 'ready' }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} },
+  mindPlay(d) { opSend({ op: 'play', n: +d.v }); try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} },
+  mindStar(d) { opSend({ op: 'star', on: d.v === '1' }); },
   // feria (teléfono)
   fSel(d) { const t = +d.t; const h = P.st && P.st.h && P.st.h[P.me]; if (!h) return; P.fs = P.fs && P.fs.t === t ? null : { t, c: Math.min(h[t], P.fs ? P.fs.c : 1, 4) }; render(); },
   fQty(d) { if (P.fs) { P.fs.c = +d.c; render(); } },
