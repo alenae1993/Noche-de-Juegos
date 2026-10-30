@@ -2876,6 +2876,49 @@ async function loadIncluded() {
   try { localStorage.setItem(PACK_FLAG, '1'); } catch (e) {}
   cardsBusy = ''; S.cardMsg = `Listo: ${PACK_TOTAL} cartas de Dixit cargadas en este navegador.`; render();
 }
+// ----- Cargar cartas desde links de Dropbox (u otra nube que permita lectura directa) -----
+// Los links se guardan solo en este navegador: nunca van en el código publicado.
+const LINKS_LS = 'noche-cartas-links', LINKS_DONE = 'noche-cartas-links-ok';
+const getLinks = () => { try { return JSON.parse(localStorage.getItem(LINKS_LS) || '[]'); } catch (e) { return []; } };
+const setLinks = l => { try { localStorage.setItem(LINKS_LS, JSON.stringify(l)); } catch (e) {} };
+const linksLoaded = () => { try { const l = getLinks(); return !!l.length && localStorage.getItem(LINKS_DONE) === l.join('|') && CARDS.length > 0; } catch (e) { return false; } };
+function directLink(u) {
+  u = String(u || '').trim(); if (!u) return '';
+  try {
+    const url = new URL(u);
+    if (/(^|\.)dropbox\.com$/.test(url.hostname) && url.hostname !== 'dl.dropboxusercontent.com') { url.hostname = 'dl.dropboxusercontent.com'; url.searchParams.delete('dl'); url.searchParams.delete('raw'); url.searchParams.set('dl', '1'); }
+    const gd = u.match(/drive\.google\.com\/file\/d\/([^/]+)/); if (gd) return 'https://drive.google.com/uc?export=download&id=' + gd[1];
+    return url.toString();
+  } catch (e) { return ''; }
+}
+async function fetchWithProgress(url, label) {
+  const r = await fetch(url); if (!r.ok) throw Object.assign(new Error('http'), { code: 'http', status: r.status });
+  const total = +r.headers.get('content-length') || 0;
+  if (!r.body || !r.body.getReader) return r.blob();
+  const reader = r.body.getReader(); const parts = []; let got = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; setBusy(`${label}Descargando ${(got / 1048576).toFixed(1)}${total ? ' de ' + (total / 1048576).toFixed(1) : ''} MB…`); }
+  return new Blob(parts, { type: r.headers.get('content-type') || '' });
+}
+async function loadFromLinks(links) {
+  if (cardsBusy) return; links = links.map(directLink).filter(Boolean);
+  if (!links.length) { S.cardMsg = 'Pega al menos un link.'; render(); return; }
+  setLinks(links); let total = 0;
+  for (let i = 0; i < links.length; i++) {
+    const label = links.length > 1 ? `Link ${i + 1} de ${links.length} · ` : '';
+    let blob;
+    try { blob = await fetchWithProgress(links[i], label); }
+    catch (e) { cardsBusy = ''; S.cardMsg = e.code === 'http' ? `El link ${i + 1} respondió con error ${e.status}. Revisa que el archivo siga compartido en Dropbox.` : `No pude descargar el link ${i + 1}. Revisa que sea un link de Dropbox para compartir ("Copiar link") y que tengas internet.`; render(); return; }
+    const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    const isZip = head[0] === 0x50 && head[1] === 0x4b;
+    const before = CARDS.length;
+    if (isZip) await importZip([new File([blob], 'cartas.zip', { type: 'application/zip' })]);
+    else if ((blob.type || '').startsWith('image/')) await importFiles([new File([blob], 'carta.jpg', { type: blob.type })], label);
+    else { cardsBusy = ''; S.cardMsg = `El link ${i + 1} no es un zip ni una imagen. Si es una carpeta de Dropbox, comparte cada zip por separado.`; render(); return; }
+    total += CARDS.length - before;
+  }
+  try { localStorage.setItem(LINKS_DONE, links.join('|')); } catch (e) {}
+  cardsBusy = ''; S.cardMsg = `Listo: ${total} cartas cargadas desde tus links.`; render();
+}
 async function makeSampleCards(n = 84) {
   const out = [];
   for (let i = 0; i < n; i++) {
@@ -2899,6 +2942,9 @@ VIEWS.cards = () => {
     ${cardsNoDB ? `<p class="note">Este navegador no permite guardar las cartas (¿modo incógnito?). Funcionan mientras no cierres la página.</p>` : ''}
     ${cardsBusy ? `<p class="note" id="cards-busy">${esc(cardsBusy)}</p>` : ''}
     ${PACK_SHEETS.length ? `<div class="panel spread"><div><b>Cartas de Dixit incluidas (${PACK_TOTAL})</b><div class="small muted">${packLoaded() ? 'Ya están cargadas en este navegador.' : 'Se descargan y guardan en este navegador una sola vez. Toma unos minutos.'}</div></div><button class="btn" data-a="cardsIncluded" ${cardsBusy || packLoaded() ? 'disabled' : ''}>${packLoaded() ? 'Cargadas ✓' : 'Cargar las ' + PACK_TOTAL + ' cartas'}</button></div>` : ''}
+    <div class="panel stack"><b>Desde Dropbox</b><span class="small muted">Pega el link de cada zip ("Compartir → Copiar link"), uno por línea. Los links se guardan solo en este navegador, así la próxima vez basta con un toque.</span>
+      <textarea id="cl-links" rows="3" spellcheck="false" placeholder="https://www.dropbox.com/scl/fi/.../Dixit_parte_1.zip?rlkey=...&dl=0">${esc(getLinks().join('\n'))}</textarea>
+      <div class="row"><button class="btn" data-a="cardsLinks" ${cardsBusy ? 'disabled' : ''}>Cargar desde estos links</button>${linksLoaded() ? '<span class="pill">Cargadas ✓</span>' : ''}</div></div>
     <div class="dgrid2">
       <label class="panel stack"><b>Imágenes sueltas</b><span class="small muted">Elige una o muchas imágenes (JPG, PNG). Una imagen = una carta.</span><input type="file" id="cf-files" accept="image/*" multiple data-file="files"></label>
       <label class="panel stack"><b>Una carpeta completa</b><span class="small muted">Elige la carpeta donde tienes las cartas (funciona en Chrome y Edge de computador).</span><input type="file" id="cf-dir" webkitdirectory multiple data-file="files"></label>
@@ -3025,6 +3071,7 @@ GAMES.dix = {
       const n = hostPlayers().length;
       return `<div class="stagebox">
         <p>Juego de imaginación basado en Dixit. Cada ronda, un narrador da una pista sobre una carta y los demás intentan confundir con cartas parecidas. <b>Se juega con tus propias cartas</b>, que se cargan en esta pantalla.</p>
+        ${!PACK_SHEETS.length && !CARDS.length && getLinks().length ? `<div class="panel spread"><div><b>Aún no hay cartas en este navegador</b><div class="small muted">Cárgalas desde tus links de Dropbox (una sola vez en este navegador).</div></div><button class="btn" data-a="cardsLinksSaved" ${cardsBusy ? 'disabled' : ''}>Cargar desde Dropbox</button></div>${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}` : ''}
         ${PACK_SHEETS.length && !CARDS.length ? `<div class="panel spread"><div><b>Aún no hay cartas en este navegador</b><div class="small muted">Carga las ${PACK_TOTAL} cartas de Dixit incluidas (una sola vez, toma unos minutos).</div></div><button class="btn" data-a="cardsIncluded" ${cardsBusy ? 'disabled' : ''}>Cargar cartas</button></div>${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}` : ''}
         <div class="row"><span class="pill">${CARDS.length} cartas cargadas</span><span class="pill">${n} jugadores conectados (de 3 a 8)</span><button class="btn alt" data-a="cardsOpen">Mis cartas</button></div>
         <div class="toggle ${g.tut ? 'on' : ''}" data-a="dixTut" role="switch" aria-checked="${g.tut}" tabindex="0"><span class="sw"></span><span>Mostrar la explicación paso a paso antes de empezar (recomendado si alguien no ha jugado)</span></div>
@@ -3272,10 +3319,12 @@ const ACT = {
   // imaginario
   cardsOpen() { S.prevView = S.view; S.view = 'cards'; S.cardMsg = ''; dixLoad(); render(); },
   cardsIncluded() { loadIncluded(); },
+  cardsLinks() { const el = document.getElementById('cl-links'); loadFromLinks((el ? el.value : '').split(/\s+/)); },
+  cardsLinksSaved() { loadFromLinks(getLinks()); },
   cardsSample() { if (!cardsBusy) makeSampleCards(84); },
   async cardsClear() {
     if (!S.cardConfirm) { S.cardConfirm = true; const b = document.querySelector('[data-a=cardsClear]'); if (b) b.textContent = 'Toca otra vez para borrar todo'; setTimeout(() => { S.cardConfirm = false; }, 3000); return; }
-    S.cardConfirm = false; CARDS.forEach(c => { try { URL.revokeObjectURL(CARD_URL[c.id]); } catch (e) {} delete CARD_URL[c.id]; delete CARD_TH[c.id]; }); CARDS = []; try { await CDB.clear(); } catch (e) {} try { localStorage.removeItem(PACK_FLAG); } catch (e) {} S.cardMsg = 'Cartas borradas.'; render();
+    S.cardConfirm = false; CARDS.forEach(c => { try { URL.revokeObjectURL(CARD_URL[c.id]); } catch (e) {} delete CARD_URL[c.id]; delete CARD_TH[c.id]; }); CARDS = []; try { await CDB.clear(); } catch (e) {} try { localStorage.removeItem(PACK_FLAG); localStorage.removeItem(LINKS_DONE); } catch (e) {} S.cardMsg = 'Cartas borradas.'; render();
   },
   dixTut() { S.g.tut = !S.g.tut; render(); },
   dixHelp() { S.g.help = !S.g.help; render(); },
