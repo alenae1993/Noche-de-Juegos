@@ -1171,6 +1171,17 @@ async function peerHost(code) {
     const sendAll = () => { const m = { t: 'host', p: my }; conns.forEach(c => { try { if (c.open) c.send(m); } catch (e) {} }); };
     const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; sendAll(); }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
     api.isOnline = id => pres.has(id) && Date.now() - (lastSeen.get(id) || 0) < 15000;
+    api.routes = async () => {
+      const out = {};
+      for (const [id, c] of conns) {
+        try {
+          const st = await c.peerConnection.getStats(); let pair = null; const cand = {};
+          st.forEach(r => { if (r.type === 'candidate-pair' && (r.nominated || r.selected) && r.state === 'succeeded') pair = r; if (r.type === 'local-candidate' || r.type === 'remote-candidate') cand[r.id] = r.candidateType; });
+          if (pair) out[id] = (cand[pair.localCandidateId] === 'relay' || cand[pair.remoteCandidateId] === 'relay') ? 'relay' : 'direct';
+        } catch (e) {}
+      }
+      return out;
+    };
     setInterval(() => { if (!peer.destroyed) sendAll(); }, 4000); // latido de la pantalla principal
     peer.on('open', () => { opened = true; resolve(api); });
     peer.on('error', e => { if (!opened) reject(Object.assign(new Error(e.type), { code: e.type })); });
@@ -1396,7 +1407,12 @@ function render() {
 }
 
 const topBar = (extra = '') => `<div class="top"><div class="row"><button class="btn alt" data-a="goBack" aria-label="Volver atrás">← Atrás</button><div class="logo">NOCHE DE <span>JUEGOS</span></div></div><div class="row">${extra}</div></div>`;
-const chipP = p => `<span class="chip"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`;
+const chipP = p => `<span class="chip"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${(S.routes || {})[p.id] === 'relay' ? ' <span class="small" style="color:var(--sun)" title="Conectado a través de un servidor de relevo: más lento">· relevo</span>' : ''}</span>`;
+setInterval(async () => {
+  if (S.mode !== 'host' || !NR || !NR.routes) return;
+  const r = await NR.routes(); const sig = JSON.stringify(r);
+  if (sig !== S.routesSig) { S.routes = r; S.routesSig = sig; if (S.view === 'hostLobby') render(); }
+}, 5000);
 
 const VIEWS = {};
 
@@ -1441,6 +1457,7 @@ VIEWS.hostLobby = () => {
     <p class="muted" style="max-width:52ch">Cada jugador abre este mismo enlace en su celular, toca <b>Unirme con mi celular</b> y escribe el código.</p>
     ${TRANSPORT === 'peer' ? `<p class="small muted" style="max-width:52ch">Conexión directa entre dispositivos: funciona mejor si todos están en el mismo WiFi. No cierres ni bloquees esta pantalla durante el juego.</p>` : ''}
     <div class="chips" style="justify-content:center">${ps.map(chipP).join('') || '<span class="muted">Esperando jugadores…</span>'}</div>
+    ${Object.values(S.routes || {}).includes('relay') ? `<p class="note">Los marcados con <b>· relevo</b> no pudieron conectarse directo con esta pantalla (pasa mucho con datos móviles) y van por un servidor intermedio más lento: sus cartas pueden tardar más en llegar. Si pueden, que se conecten al WiFi.</p>` : ''}
     ${ps.some((p, i) => ps.findIndex(x => x.name === p.name) !== i) ? `<p class="note" style="border-color:var(--bad)">Hay nombres repetidos. Pídanle a cada jugador un nombre distinto: así el juego los reconoce si se desconectan.</p>` : ''}
     <button class="btn big" data-a="menu" ${ps.length < 2 ? 'disabled' : ''}>Elegir juego (${ps.length} conectados)</button>
   </div>`;
@@ -2460,7 +2477,7 @@ const DMBUF = {};
 async function dmSend(to, obj) {
   if (!NR) return;
   if (TRANSPORT === 'peer') { NR.dm && NR.dm(to, obj); return; }
-  const str = JSON.stringify(obj), id = Math.random().toString(36).slice(2, 8), size = 2800, n = Math.max(1, Math.ceil(str.length / size));
+  const str = JSON.stringify(obj), id = Math.random().toString(36).slice(2, 8), size = 3400, n = Math.max(1, Math.ceil(str.length / size));
   for (let i = 0; i < n; i++) DMQ.push({ to, id, i, n, c: str.slice(i * size, (i + 1) * size) });
   dmPump();
 }
@@ -2471,7 +2488,7 @@ async function dmPump() {
   while (DMQ.length && NR) {
     const m = DMQ.shift();
     try { await NR.emit('dm', m); } catch (e) { if (e && e.code === 'not_permitted') { S.dmErr = true; DMQ.length = 0; render(); break; } }
-    await new Promise(r => setTimeout(r, 28));
+    await new Promise(r => setTimeout(r, 40));
   }
   dmPumping = false;
 }
@@ -2806,7 +2823,7 @@ const newCardId = () => 'k' + (Date.now() % 1e7).toString(36) + (cardSeq++).toSt
 async function makeCard(img, sx, sy, sw, sh, src) {
   // si la imagen original ya es un JPG liviano, se usa tal cual para la tele (ahorra una recompresión)
   const keep = src && sw <= 720 && /jpe?g/i.test(src.type || '') && src.size < 400000;
-  const [tv, th] = await Promise.all([keep ? Promise.resolve(src) : scaleTo(img, sx, sy, sw, sh, 640, 0.82), scaleTo(img, sx, sy, sw, sh, 220, 0.62)]);
+  const [tv, th] = await Promise.all([keep ? Promise.resolve(src) : scaleTo(img, sx, sy, sw, sh, 640, 0.82), scaleTo(img, sx, sy, sw, sh, 200, 0.55)]);
   return { id: newCardId(), tv, th };
 }
 async function decodeImg(blob) { if (window.createImageBitmap) { try { return await createImageBitmap(blob); } catch (e) {} } return loadImg(blob); }
@@ -2822,7 +2839,7 @@ async function addCards(list) {
 const blobToData = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
 async function cardThumb(id) {
   if (CARD_TH[id]) return CARD_TH[id]; const c = CARDS.find(x => x.id === id); if (!c) return '';
-  if (!c.th) { try { const img = await decodeImg(c.tv); c.th = await scaleTo(img, 0, 0, imgW(img), imgH(img), 220, 0.62); if (img.close) img.close(); CDB.put([c]).catch(() => {}); } catch (e) { return ''; } }
+  if (!c.th) { try { const img = await decodeImg(c.tv); c.th = await scaleTo(img, 0, 0, imgW(img), imgH(img), 200, 0.55); if (img.close) img.close(); CDB.put([c]).catch(() => {}); } catch (e) { return ''; } }
   CARD_TH[id] = await blobToData(c.th); return CARD_TH[id];
 }
 const isImgName = n => /\.(jpe?g|png|webp|gif|bmp)$/i.test(n);
@@ -3006,7 +3023,7 @@ GAMES.dix = {
     const g = S.g; if (!g || !g.sent || !g.sent[pid]) return;
     g.sentAt = g.sentAt || {};
     for (const id of ids) {
-      const key = pid + '|' + id; if (force ? Date.now() - (g.sentAt[key] || 0) < 10000 : g.sent[pid].has(id)) continue;
+      const key = pid + '|' + id; if (force ? Date.now() - (g.sentAt[key] || 0) < 5000 : g.sent[pid].has(id)) continue;
       g.sent[pid].add(id); g.sentAt[key] = Date.now(); const src = await cardThumb(id); if (src) dmSend(pid, { t: 'img', id, src });
     }
   },
@@ -3136,8 +3153,8 @@ PHONE.dix = st => {
   P.dsel = (P.dsel || []).filter(id => hand.includes(id));
   if (P.dkey !== st.k + st.ph) { P.dkey = st.k + st.ph; P.dsel = []; }
   const missing = hand.filter(id => !P.imgs[id]);
-  if (missing.length && NR && Date.now() - (P.needT || 0) > 10000 && Date.now() - P.at > 8000) { P.needT = Date.now(); NR.presence({ needImg: missing.slice(0, 7), nk: Date.now() }).catch(() => {}); }
-  if (missing.length) setTimeout(() => { if (P.st === st) render(); }, 10500);
+  if (missing.length && NR && Date.now() - (P.needT || 0) > 6000 && Date.now() - P.at > 5000) { P.needT = Date.now(); NR.presence({ needImg: missing.slice(0, 7), nk: Date.now() }).catch(() => {}); }
+  if (missing.length) setTimeout(() => { if (P.st === st) render(); }, 6500);
   const role = `<div class="dbanner sm"><span class="dstep">Ronda ${st.r} · ${isNar ? 'Eres el narrador' : 'Narrador: ' + esc(st.nn)}</span></div>`;
   const handGrid = (selectable, max) => `<div class="hand">${hand.map(id => `<button class="hcard ${P.dsel.includes(id) ? 'on' : ''}" ${selectable ? `data-a="dixSel" data-id="${esc(id)}" data-max="${max}"` : 'disabled'}>${P.imgs[id] ? `<img src="${P.imgs[id]}" alt="Carta">` : '<span class="small muted">Cargando…</span>'}</button>`).join('')}</div>`;
   const help = txt => `<p class="note">${txt}</p>`;
