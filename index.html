@@ -1165,11 +1165,13 @@ async function peerHost(code) {
   await loadPeerJS();
   return new Promise((resolve, reject) => {
     const peer = new window.Peer(PEER_PREFIX + code);
-    const conns = new Map(), pres = new Map(), cbs = new Set(); let my = {}, t = null, opened = false;
+    const conns = new Map(), pres = new Map(), cbs = new Set(), lastSeen = new Map(); let my = {}, t = null, opened = false;
     const snap = () => [{ peer: 'host', sameTab: true, isMe: true, presence: my }, ...[...pres].map(([id, p]) => ({ peer: id, sameTab: false, isMe: false, presence: p }))];
     const fire = (j = [], l = [], u = []) => { const ch = { peers: snap(), joined: j, left: l, updated: u }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
     const sendAll = () => { const m = { t: 'host', p: my }; conns.forEach(c => { try { if (c.open) c.send(m); } catch (e) {} }); };
     const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; sendAll(); }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
+    api.isOnline = id => pres.has(id) && Date.now() - (lastSeen.get(id) || 0) < 15000;
+    setInterval(() => { if (!peer.destroyed) sendAll(); }, 4000); // latido de la pantalla principal
     peer.on('open', () => { opened = true; resolve(api); });
     peer.on('error', e => { if (!opened) reject(Object.assign(new Error(e.type), { code: e.type })); });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
@@ -1177,7 +1179,9 @@ async function peerHost(code) {
     peer.on('connection', conn => {
       conn.on('open', () => { conns.set(conn.peer, conn); try { conn.send({ t: 'host', p: my }); } catch (e) {} });
       conn.on('data', d => {
+        lastSeen.set(conn.peer, Date.now());
         if (!d || d.t !== 'pres' || typeof d.p !== 'object' || d.p === null) return;
+        if (d.hb && pres.has(conn.peer)) return; // solo latido
         const had = pres.has(conn.peer); pres.set(conn.peer, d.p);
         const e = { peer: conn.peer, presence: d.p }; had ? fire([], [], [e]) : fire([e]);
       });
@@ -1194,7 +1198,7 @@ async function peerPhone(code) {
   await loadPeerJS();
   return new Promise((resolve, reject) => {
     const myPeerId = PEER_PREFIX + code + '-' + stablePid(); const hostId = PEER_PREFIX + code;
-    const cbs = new Set(), dmCbs = new Set(); let my = {}, host = null, conn = null, peer = null, t = null, done = false, dead = false, retryT = null, tries = 0;
+    const cbs = new Set(), dmCbs = new Set(); let my = {}, host = null, conn = null, peer = null, t = null, done = false, dead = false, retryT = null, tries = 0, lastHost = Date.now();
     const snap = () => { const a = [{ peer: myPeerId, sameTab: true, isMe: true, presence: my }]; if (host) a.push({ peer: 'host', sameTab: false, isMe: false, presence: host }); return a; };
     const fire = () => { const ch = { peers: snap(), joined: [], left: [], updated: [] }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
     const sendPres = () => { try { if (conn && conn.open) conn.send({ t: 'pres', p: my }); } catch (e) {} };
@@ -1208,7 +1212,7 @@ async function peerPhone(code) {
       if (dead || !peer || peer.destroyed) return;
       const c = peer.connect(hostId, { reliable: true, serialization: 'json' }); conn = c;
       c.on('open', () => { if (conn !== c) return; tries = 0; sendPres(); if (!done) { done = true; resolve(api); } fire(); });
-      c.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
+      c.on('data', d => { if (conn === c) lastHost = Date.now(); if (d && d.t === 'host' && d.p && typeof d.p === 'object') { const changed = JSON.stringify(d.p) !== JSON.stringify(host); host = d.p; if (changed) fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
       c.on('close', () => { if (conn !== c) return; host = null; fire(); if (done) { tries++; schedule(); } });
       c.on('error', () => { if (conn === c && done) { tries++; schedule(); } });
     }
@@ -1231,6 +1235,14 @@ async function peerPhone(code) {
       connectHost();
     }
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && done && !(conn && conn.open)) { tries = 0; schedule(0); } });
+    setInterval(() => {
+      if (dead || !done) return;
+      if (conn && conn.open) {
+        try { conn.send({ t: 'pres', p: my, hb: 1 }); } catch (e) {}
+        // si la pantalla principal lleva 15 s sin dar señales, la conexión está muerta aunque diga "abierta" (pasa con datos móviles)
+        if (Date.now() - lastHost > 15000) { lastHost = Date.now(); const old = conn; conn = null; host = null; fire(); try { old.close(); } catch (e) {} tries = 0; schedule(0); }
+      }
+    }, 4000);
     makePeer();
     setTimeout(() => fail('timeout'), 20000);
   });
@@ -1249,6 +1261,7 @@ async function joinRoom(code, role) {
 }
 const newCode = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
 
+function isOnline(id) { return NR && NR.isOnline ? NR.isOnline(id) : hostPlayers().some(p => p.id === id); }
 function hostPlayers() {
   if (!NR) return [];
   return NR.peers().filter(p => !p.sameTab && p.presence && p.presence.role === 'player' && typeof p.presence.name === 'string')
@@ -2931,6 +2944,11 @@ GAMES.dix = {
       this.pub(); render();
     }
   },
+  tick() {
+    const g = S.g; if (S.mode !== 'host' || !g.players || !['story', 'pick', 'vote'].includes(g.ph)) return;
+    const sig = g.players.map(p => isOnline(p.id) ? 1 : 0).join('');
+    if (g.onSig !== undefined && g.onSig !== sig && !document.activeElement?.closest?.('input,textarea')) { g.onSig = sig; render(); } else g.onSig = sig;
+  },
   skipNarr() { const g = S.g; if (g.ph !== 'story') return; g.ni++; g.round--; this.round(); },
   toVote() {
     const g = S.g; const nar = this.narr(); if (!g.story) return;
@@ -2984,7 +3002,7 @@ GAMES.dix = {
         <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
     }
     const nar = this.narr(); const nm = id => (g.players.find(p => p.id === id) || {}).name || '?';
-    const online = new Set(hostPlayers().map(p => p.id));
+    const online = new Set(g.players.filter(p => isOnline(p.id)).map(p => p.id));
     const track = `<div class="list">${g.players.slice().sort((a, b) => g.score[b.id] - g.score[a.id]).map(p => `<div class="dtrack"><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}${online.has(p.id) ? '' : ' <span class="small" style="color:var(--bad)">· sin conexión</span>'}</b><div class="dbar"><div style="width:${Math.min(100, g.score[p.id] / 30 * 100)}%;background:${p.color}"></div></div><span class="timer" style="font-size:1.2rem">${g.score[p.id]}</span>${g.res && g.res.delta[p.id] ? `<span class="pill">+${g.res.delta[p.id]}</span>` : ''}</div>`).join('')}</div>`;
     if (g.ph === 'tut') {
       const s = DIX_TUT[g.slide];
