@@ -1284,8 +1284,8 @@ function rescuePlayers(ch) {
     if (p.sameTab || !p.presence || p.presence.role !== 'player') continue;
     const name = String(p.presence.name || '').slice(0, 16);
     if (g.players.some(x => x.id === p.peer)) continue;
-    const old = g.players.find(x => x.name === name && !live.has(x.id));
-    if (!old) continue;
+    const same = g.players.filter(x => x.name === name); if (same.length !== 1) continue; // con nombres repetidos no se puede saber quién es quién
+    const old = same[0]; if (live.has(old.id)) continue;
     const oldId = old.id; remapId(g, oldId, p.peer); delete S.seen[oldId];
     if (g.id === 'dix' && g.sent) { g.sent[p.peer] = new Set(); if (g.hands && g.hands[p.peer]) GAMES.dix.sendImgs(p.peer, g.hands[p.peer]); }
     const G = GAMES[g.id]; if (G && G.pub) G.pub(); else if (lastPub) pub(lastPub);
@@ -1427,6 +1427,7 @@ VIEWS.hostLobby = () => {
     <p class="muted" style="max-width:52ch">Cada jugador abre este mismo enlace en su celular, toca <b>Unirme con mi celular</b> y escribe el código.</p>
     ${TRANSPORT === 'peer' ? `<p class="small muted" style="max-width:52ch">Conexión directa entre dispositivos: funciona mejor si todos están en el mismo WiFi. No cierres ni bloquees esta pantalla durante el juego.</p>` : ''}
     <div class="chips" style="justify-content:center">${ps.map(chipP).join('') || '<span class="muted">Esperando jugadores…</span>'}</div>
+    ${ps.some((p, i) => ps.findIndex(x => x.name === p.name) !== i) ? `<p class="note" style="border-color:var(--bad)">Hay nombres repetidos. Pídanle a cada jugador un nombre distinto: así el juego los reconoce si se desconectan.</p>` : ''}
     <button class="btn big" data-a="menu" ${ps.length < 2 ? 'disabled' : ''}>Elegir juego (${ps.length} conectados)</button>
   </div>`;
 };
