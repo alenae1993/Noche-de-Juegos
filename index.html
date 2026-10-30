@@ -1418,6 +1418,7 @@ VIEWS.home = () => {
     <div class="toggle ${S.adult ? 'on' : ''}" data-a="toggleAdult" role="switch" aria-checked="${S.adult}" tabindex="0"><span class="sw"></span><div><b>Contenido +18</b><div class="small muted">Suma preguntas de carrete y copete. Apágalo si juegan niños.</div></div></div>
   </div>
   <div class="panel spread"><div><b>Mi pack</b><div class="small muted">Tus propias preguntas, palabras y encuestas para jugar con el grupo.</div></div><button class="btn alt" data-a="pack">Editar mi pack${packCount() ? ' (' + packCount() + ')' : ''}</button></div>
+  <div class="panel spread"><div><b>Cartas de Imaginario</b><div class="small muted">Carga tus cartas (Dropbox, zip o carpeta) en el dispositivo que será la pantalla principal.</div></div><button class="btn alt" data-a="cardsOpen">Mis cartas${CARDS.length ? ' (' + CARDS.length + ')' : ''}</button></div>
   ${S.err ? `<p class="note">${esc(S.err)}</p>` : ''}`;
 };
 
@@ -3076,7 +3077,7 @@ GAMES.dix = {
   },
   view() {
     const g = S.g;
-    if (g.ph === 'nolocal') return noLocalView('En Imaginario cada uno tiene su mano de cartas secreta en el celular.');
+    if (g.ph === 'nolocal') return noLocalView('En Imaginario cada uno tiene su mano de cartas secreta en el celular.') + `<div class="row center"><button class="btn alt" data-a="cardsOpen">Mientras tanto: cargar mis cartas${CARDS.length ? ' (' + CARDS.length + ' cargadas)' : ''}</button></div>`;
     if (g.ph === 'setup') {
       const n = hostPlayers().length;
       return `<div class="stagebox">
@@ -3416,6 +3417,7 @@ document.addEventListener('input', e => {
 });
 try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
 S.booted = true;
+setTimeout(() => { if (!cardsLoaded) dixLoad(); }, 300);
 
 // ===================== MI PACK (contenido propio) =====================
 const PACK_LS = 'noche-juegos-pack-v1';
