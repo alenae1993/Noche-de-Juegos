@@ -1181,30 +1181,58 @@ async function peerHost(code) {
         const had = pres.has(conn.peer); pres.set(conn.peer, d.p);
         const e = { peer: conn.peer, presence: d.p }; had ? fire([], [], [e]) : fire([e]);
       });
-      const gone = () => { conns.delete(conn.peer); if (pres.delete(conn.peer)) fire([], [{ peer: conn.peer }]); };
+      const gone = () => { if (conns.get(conn.peer) !== conn) return; conns.delete(conn.peer); if (pres.delete(conn.peer)) fire([], [{ peer: conn.peer }]); };
       conn.on('close', gone); conn.on('error', gone);
     });
   });
 }
+function stablePid() {
+  try { let id = sessionStorage.getItem('ndj-pid'); if (!id) { id = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('ndj-pid', id); } return id; }
+  catch (e) { return stablePid.mem || (stablePid.mem = Math.random().toString(36).slice(2, 10)); }
+}
 async function peerPhone(code) {
   await loadPeerJS();
   return new Promise((resolve, reject) => {
-    const peer = new window.Peer();
-    const cbs = new Set(); let my = {}, host = null, conn = null, myId = 'yo', t = null, done = false;
-    const snap = () => { const a = [{ peer: myId, sameTab: true, isMe: true, presence: my }]; if (host) a.push({ peer: 'host', sameTab: false, isMe: false, presence: host }); return a; };
+    const myPeerId = PEER_PREFIX + code + '-' + stablePid(); const hostId = PEER_PREFIX + code;
+    const cbs = new Set(), dmCbs = new Set(); let my = {}, host = null, conn = null, peer = null, t = null, done = false, dead = false, retryT = null, tries = 0;
+    const snap = () => { const a = [{ peer: myPeerId, sameTab: true, isMe: true, presence: my }]; if (host) a.push({ peer: 'host', sameTab: false, isMe: false, presence: host }); return a; };
     const fire = () => { const ch = { peers: snap(), joined: [], left: [], updated: [] }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
-    const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; try { if (conn && conn.open) conn.send({ t: 'pres', p: my }); } catch (e) {} }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
-    const dmCbs = new Set(); api.onDm = f => dmCbs.add(f);
-    const fail = code => { if (done) return; done = true; try { peer.destroy(); } catch (e) {} reject(Object.assign(new Error(code), { code })); };
-    peer.on('open', id => {
-      myId = id;
-      conn = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' });
-      conn.on('open', () => { if (done) return; done = true; try { conn.send({ t: 'pres', p: my }); } catch (e) {} resolve(api); });
-      conn.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
-      conn.on('close', () => { host = null; fire(); });
-    });
-    peer.on('error', e => fail(e.type));
-    setTimeout(() => fail('timeout'), 15000);
+    const sendPres = () => { try { if (conn && conn.open) conn.send({ t: 'pres', p: my }); } catch (e) {} };
+    const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; sendPres(); }, 30); }, () => { dead = true; clearTimeout(retryT); try { peer && peer.destroy(); } catch (e) {} });
+    api.onDm = f => dmCbs.add(f);
+    api.reconnect = () => { if (!dead) { tries = 0; schedule(0); } };
+    api.status = () => (conn && conn.open) ? 'ok' : 'reconnecting';
+    const fail = c => { if (done) return; done = true; dead = true; try { peer && peer.destroy(); } catch (e) {} reject(Object.assign(new Error(c), { code: c })); };
+    function schedule(ms) { if (dead) return; clearTimeout(retryT); retryT = setTimeout(reconnect, ms == null ? Math.min(8000, 1500 + tries * 1000) : ms); }
+    function connectHost() {
+      if (dead || !peer || peer.destroyed) return;
+      const c = peer.connect(hostId, { reliable: true, serialization: 'json' }); conn = c;
+      c.on('open', () => { if (conn !== c) return; tries = 0; sendPres(); if (!done) { done = true; resolve(api); } fire(); });
+      c.on('data', d => { if (d && d.t === 'host' && d.p && typeof d.p === 'object') { host = d.p; fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
+      c.on('close', () => { if (conn !== c) return; host = null; fire(); if (done) { tries++; schedule(); } });
+      c.on('error', () => { if (conn === c && done) { tries++; schedule(); } });
+    }
+    function makePeer() {
+      try { peer && peer.destroy(); } catch (e) {}
+      const pr = new window.Peer(myPeerId); peer = pr;
+      pr.on('open', () => { if (peer === pr) connectHost(); });
+      pr.on('disconnected', () => { if (peer === pr && !dead) { try { pr.reconnect(); } catch (e) {} } });
+      pr.on('error', e => {
+        if (peer !== pr) return;
+        if (!done) { if (e.type === 'unavailable-id' && tries++ < 4) return setTimeout(makePeer, 2500); return fail(e.type); }
+        tries++; schedule();
+      });
+    }
+    function reconnect() {
+      if (dead) return;
+      if (conn && conn.open) return;
+      if (!peer || peer.destroyed) return makePeer();
+      if (peer.disconnected) { try { peer.reconnect(); } catch (e) { return makePeer(); } setTimeout(connectHost, 800); return; }
+      connectHost();
+    }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && done && !(conn && conn.open)) { tries = 0; schedule(0); } });
+    makePeer();
+    setTimeout(() => fail('timeout'), 20000);
   });
 }
 const NET_ERR = { 'peer-unavailable': 'No existe una sala con ese código. Revisa las letras.', 'timeout': 'La sala no respondió. Revisa el código y que ambos tengan internet.', 'sin-internet': 'No se pudo cargar la conexión. Revisa tu internet.', 'network': 'Problema de red. Intenta de nuevo.', 'browser-incompatible': 'Este navegador no permite la conexión directa.' };
@@ -1238,7 +1266,57 @@ function pub(st) {
   NR.presence({ role: 'host', code: S.code, st: { ...st, sc } }).catch(e => console.warn('presence', e && e.message));
 }
 
+function remapId(obj, oldId, newId, seen = new Set()) {
+  if (!obj || typeof obj !== 'object' || seen.has(obj)) return obj; seen.add(obj);
+  if (obj instanceof Set) { if (obj.has(oldId)) { obj.delete(oldId); obj.add(newId); } return obj; }
+  if (obj instanceof Map) { if (obj.has(oldId)) { obj.set(newId, obj.get(oldId)); obj.delete(oldId); } obj.forEach(v => remapId(v, oldId, newId, seen)); return obj; }
+  if (Array.isArray(obj)) { for (let i = 0; i < obj.length; i++) { if (obj[i] === oldId) obj[i] = newId; else remapId(obj[i], oldId, newId, seen); } return obj; }
+  for (const k of Object.keys(obj)) {
+    const v = obj[k]; if (v === oldId) obj[k] = newId; else remapId(v, oldId, newId, seen);
+    if (k === oldId) { obj[newId] = obj[k]; delete obj[k]; }
+  }
+  return obj;
+}
+function rescuePlayers(ch) {
+  const g = S.g; if (!g || !Array.isArray(g.players)) return;
+  const live = new Set(ch.peers.map(p => p.peer));
+  for (const p of ch.peers) {
+    if (p.sameTab || !p.presence || p.presence.role !== 'player') continue;
+    const name = String(p.presence.name || '').slice(0, 16);
+    if (g.players.some(x => x.id === p.peer)) continue;
+    const old = g.players.find(x => x.name === name && !live.has(x.id));
+    if (!old) continue;
+    const oldId = old.id; remapId(g, oldId, p.peer); delete S.seen[oldId];
+    if (g.id === 'dix' && g.sent) { g.sent[p.peer] = new Set(); if (g.hands && g.hands[p.peer]) GAMES.dix.sendImgs(p.peer, g.hands[p.peer]); }
+    const G = GAMES[g.id]; if (G && G.pub) G.pub(); else if (lastPub) pub(lastPub);
+  }
+}
+// ----- recuperación automática de la sala -----
+let hostRejoining = false;
+async function hostRejoin() {
+  if (hostRejoining || S.mode !== 'host') return; hostRejoining = true;
+  for (let i = 0; i < 6 && S.mode === 'host'; i++) {
+    await new Promise(r => setTimeout(r, 1500 + i * 1500));
+    try { await joinRoom(S.code, 'host'); NR.onPeers(onHostPeers, () => { hostRejoining = false; hostRejoin(); }); if (lastPub) pub(lastPub); else pub({ t: 'wait', msg: 'En el lobby' }); S.err = ''; hostRejoining = false; render(); return; } catch (e) {}
+  }
+  hostRejoining = false; S.err = 'Se perdió la conexión de la sala. Revisa internet y vuelve a crear la sala.'; render();
+}
+function phoneRejoinSoon() { if (S.mode !== 'phone') return; P.host = false; render(); setTimeout(() => ACT.rejoin(), 1500); }
+// vigilante: si el celular deja de ver la pantalla principal varios segundos, vuelve a entrar solo
+setInterval(() => {
+  if (S.mode !== 'phone' || !NR) return;
+  const lost = !P.host || (TRANSPORT === 'room' && NR.connected && !NR.connected());
+  if (!lost) { P.lostAt = 0; return; }
+  if (!P.lostAt) { P.lostAt = Date.now(); return; }
+  if (Date.now() - P.lostAt > 8000) { P.lostAt = Date.now(); if (NR.reconnect) NR.reconnect(); else ACT.rejoin(); }
+}, 2000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (S.mode === 'phone' && NR && !P.host) { if (NR.reconnect) NR.reconnect(); else ACT.rejoin(); }
+  if (S.mode === 'host' && NR && TRANSPORT === 'room' && NR.connected && !NR.connected()) hostRejoin();
+});
 function onHostPeers(ch) {
+  rescuePlayers(ch);
   const g = S.g;
   for (const p of ch.peers) {
     if (p.sameTab || !p.presence || p.presence.role !== 'player') continue;
@@ -1262,6 +1340,7 @@ function onPhonePeers(ch) {
   const me = ch.peers.find(p => p.sameTab); if (me) P.me = me.peer;
   const host = ch.peers.find(p => p.presence && p.presence.role === 'host');
   P.host = !!host;
+  if (!host) { render(); return; } // conserva el último estado para mostrar "Reconectando…" y no perder el lugar
   const st = host ? host.presence.st : null;
   const sig = JSON.stringify(st);
   if (sig !== P.sig) {
@@ -1415,7 +1494,9 @@ VIEWS.phone = () => {
   const score = st && st.sc ? (st.sc[S.pname] ?? 0) : 0;
   const head = `<div class="top"><span class="chip"><span class="dot" style="background:${S.pcolor}"></span>${esc(S.pname)}</span><span class="pill">Sala ${esc(S.code)} · <b>${score}</b> pts</span><button class="btn alt" data-a="leave">← Salir</button></div>`;
   let body = '';
-  if (!P.host || !st) body = `<div class="secret"><h3>Buscando la pantalla principal…</h3><p class="muted">Si no aparece, revisa el código.</p></div>`;
+  if (!P.host || !st) body = P.st
+    ? `<div class="secret"><h3>Reconectando con la pantalla principal…</h3><p class="muted">Se cortó la conexión (por ejemplo, si el celular se bloqueó). Vuelve solo en unos segundos y conservas tu lugar y tus cartas.</p><button class="btn" data-a="reconnect">Reintentar ahora</button></div>`
+    : `<div class="secret"><h3>Buscando la pantalla principal…</h3><p class="muted">Si no aparece, revisa el código y que la pantalla principal esté abierta.</p><button class="btn alt" data-a="reconnect">Reintentar</button></div>`;
   else body = (PHONE[st.t] || PHONE.wait)(st);
   return `<div class="phone stack">${head}${body}</div>`;
 };
@@ -2849,6 +2930,7 @@ GAMES.dix = {
       this.pub(); render();
     }
   },
+  skipNarr() { const g = S.g; if (g.ph !== 'story') return; g.ni++; g.round--; this.round(); },
   toVote() {
     const g = S.g; const nar = this.narr(); if (!g.story) return;
     const list = [{ id: g.story.card, owner: nar.id }]; Object.entries(g.picks).forEach(([pid, cs]) => cs.forEach(id => list.push({ id, owner: pid })));
@@ -2901,7 +2983,8 @@ GAMES.dix = {
         <div class="row"><button class="btn big" data-a="g" data-f="begin">Empezar</button></div></div>`;
     }
     const nar = this.narr(); const nm = id => (g.players.find(p => p.id === id) || {}).name || '?';
-    const track = `<div class="list">${g.players.slice().sort((a, b) => g.score[b.id] - g.score[a.id]).map(p => `<div class="dtrack"><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}</b><div class="dbar"><div style="width:${Math.min(100, g.score[p.id] / 30 * 100)}%;background:${p.color}"></div></div><span class="timer" style="font-size:1.2rem">${g.score[p.id]}</span>${g.res && g.res.delta[p.id] ? `<span class="pill">+${g.res.delta[p.id]}</span>` : ''}</div>`).join('')}</div>`;
+    const online = new Set(hostPlayers().map(p => p.id));
+    const track = `<div class="list">${g.players.slice().sort((a, b) => g.score[b.id] - g.score[a.id]).map(p => `<div class="dtrack"><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}${online.has(p.id) ? '' : ' <span class="small" style="color:var(--bad)">· sin conexión</span>'}</b><div class="dbar"><div style="width:${Math.min(100, g.score[p.id] / 30 * 100)}%;background:${p.color}"></div></div><span class="timer" style="font-size:1.2rem">${g.score[p.id]}</span>${g.res && g.res.delta[p.id] ? `<span class="pill">+${g.res.delta[p.id]}</span>` : ''}</div>`).join('')}</div>`;
     if (g.ph === 'tut') {
       const s = DIX_TUT[g.slide];
       return `<div class="stagebox" style="text-align:center;align-items:center"><span class="eyebrow">Cómo se juega · ${g.slide + 1} de ${DIX_TUT.length}</span><h2>${esc(s.t)}</h2>
@@ -2912,6 +2995,8 @@ GAMES.dix = {
     const waitChips = (list, done) => `<div class="chips">${list.map(p => `<span class="chip ${done(p) ? 'sel' : ''}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)} ${done(p) ? '✓' : '…'}</span>`).join('')}</div>`;
     const clue = g.story && g.story.clue ? `<p class="dclue">“${esc(g.story.clue)}”</p>` : '';
     if (g.ph === 'story') return `<div class="stagebox">${banner(1, `${esc(nar.name)} es el narrador`, `${esc(nar.name)} está eligiendo una carta en su celular y pensando una pista. Los demás pueden mirar su mano mientras esperan.`)}
+      ${!online.has(nar.id) ? `<p class="note" style="border-color:var(--bad)">${esc(nar.name)} perdió la conexión (¿se bloqueó el celular?). Al desbloquearlo vuelve solo. Si no aparece, puedes pasarle el turno al siguiente.</p>` : ''}
+      <div class="row"><button class="btn alt" data-a="g" data-f="skipNarr">Pasar el turno de narrador al siguiente</button></div>
       ${g.round === 1 ? `<p class="note">Consejo para el narrador: una buena pista no es ni muy obvia ni muy rara. Por ejemplo, para una carta con un barco en una tormenta, "naufragio" es muy obvia; "lunes" puede ser perfecta.</p>` : ''}${track}</div>`;
     if (g.ph === 'pick') return `<div class="stagebox">${banner(2, 'Todos eligen una carta', `La pista de ${esc(nar.name)} es:`)}${clue || `<p class="dclue">(${esc(nar.name)} la dice en voz alta)</p>`}
       <p class="muted" style="text-align:center">Cada uno elige en su celular ${g.per === 2 ? 'dos cartas de su mano que calcen' : 'la carta de su mano que mejor calce'} con la pista, para que los demás crean que es la del narrador.</p>
@@ -3081,7 +3166,7 @@ const ACT = {
     if (!ok) { S.err = 'No se pudo crear la sala. ' + netMsg(last); render(); return; }
     S.err = '';
     S.mode = 'host'; S.view = 'hostLobby';
-    NR.onPeers(onHostPeers, e => { S.err = 'Se perdió la conexión de la sala.'; });
+    NR.onPeers(onHostPeers, () => hostRejoin());
     pub({ t: 'wait', msg: 'En el lobby' }); render();
   },
   lobby() { S.view = 'hostLobby'; pub({ t: 'wait', msg: 'En el lobby' }); render(); },
@@ -3096,7 +3181,7 @@ const ACT = {
     try { await joinRoom(code, 'phone'); } catch (e) { S.err = netMsg(e); render(); document.getElementById('jc').value = code; return; }
     S.pcolor = COLORS[Math.floor(Math.random() * COLORS.length)];
     S.mode = 'phone'; S.view = 'phone'; S.err = '';
-    NR.onPeers(onPhonePeers); dmListen();
+    NR.onPeers(onPhonePeers, () => phoneRejoinSoon()); dmListen(); P.lostAt = 0;
     NR.presence({ role: 'player', name, color: S.pcolor }).catch(() => {});
     render();
   },
@@ -3176,6 +3261,8 @@ const ACT = {
   ruedaPhone(d) { if (P.st) { opSend({ op: 'letter', l: d.v }); try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} } },
   bBad(d) { GAMES.bach.toggle(d.k); },
   bBasta() { bastaSend(true); try { navigator.vibrate && navigator.vibrate(120); } catch (e) {} },
+  reconnect() { if (NR && NR.reconnect) NR.reconnect(); else if (S.code && S.pname) ACT.rejoin(); },
+  async rejoin() { if (P.rejoining || S.mode !== 'phone') return; P.rejoining = true; const code = S.code; try { await joinRoom(code, 'phone'); NR.onPeers(onPhonePeers, () => phoneRejoinSoon()); dmListen(); NR.presence({ role: 'player', name: S.pname, color: S.pcolor }).catch(() => {}); S.err = ''; P.lostAt = 0; } catch (e) { S.err = netMsg(e); } P.rejoining = false; render(); },
   // feria (teléfono)
   fSel(d) { const t = +d.t; const h = P.st && P.st.h && P.st.h[P.me]; if (!h) return; P.fs = P.fs && P.fs.t === t ? null : { t, c: Math.min(h[t], P.fs ? P.fs.c : 1, 4) }; render(); },
   fQty(d) { if (P.fs) { P.fs.c = +d.c; render(); } },
