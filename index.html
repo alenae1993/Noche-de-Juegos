@@ -1165,15 +1165,25 @@ async function peerHost(code) {
   await loadPeerJS();
   return new Promise((resolve, reject) => {
     const peer = new window.Peer(PEER_PREFIX + code);
-    const conns = new Map(), pres = new Map(), cbs = new Set(), lastSeen = new Map(); let my = {}, t = null, opened = false;
+    // por jugador puede haber más de una conexión (cuando el celular reconecta); se le habla por la que usó último
+    const conns = new Map(), seen = new Map(), pres = new Map(), cbs = new Set(), lastSeen = new Map(); let my = {}, t = null, opened = false;
     const snap = () => [{ peer: 'host', sameTab: true, isMe: true, presence: my }, ...[...pres].map(([id, p]) => ({ peer: id, sameTab: false, isMe: false, presence: p }))];
     const fire = (j = [], l = [], u = []) => { const ch = { peers: snap(), joined: j, left: l, updated: u }; cbs.forEach(f => { try { f(ch); } catch (e) { console.error(e); } }); };
-    const sendAll = () => { const m = { t: 'host', p: my }; conns.forEach(c => { try { if (c.open) c.send(m); } catch (e) {} }); };
+    const targets = id => {
+      const set = conns.get(id); if (!set) return [];
+      const open = [...set].filter(c => c.open); const now = Date.now();
+      const fresh = open.filter(c => now - (seen.get(c) || 0) < 12000);
+      if (fresh.length) return [fresh.reduce((a, b) => (seen.get(b) || 0) > (seen.get(a) || 0) ? b : a)];
+      return open;
+    };
+    const sendTo = (id, m) => targets(id).forEach(c => { try { c.send(m); } catch (e) {} });
+    const sendAll = () => { const m = { t: 'host', p: my }; conns.forEach((_, id) => sendTo(id, m)); };
     const api = peerApi(snap, cbs, patch => { my = mergePres(my, patch); if (!t) t = setTimeout(() => { t = null; sendAll(); }, 30); }, () => { try { peer.destroy(); } catch (e) {} });
     api.isOnline = id => pres.has(id) && Date.now() - (lastSeen.get(id) || 0) < 15000;
     api.routes = async () => {
       const out = {};
-      for (const [id, c] of conns) {
+      for (const id of conns.keys()) {
+        const c = targets(id)[0]; if (!c) continue;
         try {
           const st = await c.peerConnection.getStats(); let pair = null; const cand = {};
           st.forEach(r => { if (r.type === 'candidate-pair' && (r.nominated || r.selected) && r.state === 'succeeded') pair = r; if (r.type === 'local-candidate' || r.type === 'remote-candidate') cand[r.id] = r.candidateType; });
@@ -1182,21 +1192,27 @@ async function peerHost(code) {
       }
       return out;
     };
+    api.dm = (to, data) => sendTo(to, { t: 'dm', d: data });
     setInterval(() => { if (!peer.destroyed) sendAll(); }, 4000); // latido de la pantalla principal
     peer.on('open', () => { opened = true; resolve(api); });
     peer.on('error', e => { if (!opened) reject(Object.assign(new Error(e.type), { code: e.type })); });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
-    api.dm = (to, data) => { const c = conns.get(to); try { if (c && c.open) c.send({ t: 'dm', d: data }); } catch (e) {} };
     peer.on('connection', conn => {
-      conn.on('open', () => { conns.set(conn.peer, conn); try { conn.send({ t: 'host', p: my }); } catch (e) {} });
+      const id = conn.peer;
+      conn.on('open', () => { if (!conns.has(id)) conns.set(id, new Set()); conns.get(id).add(conn); seen.set(conn, Date.now()); try { conn.send({ t: 'host', p: my }); } catch (e) {} });
       conn.on('data', d => {
-        lastSeen.set(conn.peer, Date.now());
+        const now = Date.now(); seen.set(conn, now); lastSeen.set(id, now);
+        if (!conns.has(id)) conns.set(id, new Set()); conns.get(id).add(conn);
         if (!d || d.t !== 'pres' || typeof d.p !== 'object' || d.p === null) return;
-        if (d.hb && pres.has(conn.peer)) return; // solo latido
-        const had = pres.has(conn.peer); pres.set(conn.peer, d.p);
-        const e = { peer: conn.peer, presence: d.p }; had ? fire([], [], [e]) : fire([e]);
+        if (d.hb && pres.has(id)) return; // solo latido
+        const had = pres.has(id); pres.set(id, d.p);
+        const e = { peer: id, presence: d.p }; had ? fire([], [], [e]) : fire([e]);
       });
-      const gone = () => { if (conns.get(conn.peer) !== conn) return; conns.delete(conn.peer); if (pres.delete(conn.peer)) fire([], [{ peer: conn.peer }]); };
+      const gone = () => {
+        const set = conns.get(id); if (!set || !set.has(conn)) return; set.delete(conn); seen.delete(conn);
+        if ([...set].some(c => c.open)) return; // le queda otra conexión viva
+        conns.delete(id); if (pres.delete(id)) fire([], [{ peer: id }]);
+      };
       conn.on('close', gone); conn.on('error', gone);
     });
   });
@@ -1221,6 +1237,7 @@ async function peerPhone(code) {
     function schedule(ms) { if (dead) return; clearTimeout(retryT); retryT = setTimeout(reconnect, ms == null ? Math.min(8000, 1500 + tries * 1000) : ms); }
     function connectHost() {
       if (dead || !peer || peer.destroyed) return;
+      try { Object.values(peer.connections || {}).flat().forEach(x => { if (x !== conn && x.open) x.close(); }); } catch (e) {}
       const c = peer.connect(hostId, { reliable: true, serialization: 'json' }); conn = c;
       c.on('open', () => { if (conn !== c) return; tries = 0; sendPres(); if (!done) { done = true; resolve(api); } fire(); });
       c.on('data', d => { if (conn === c) lastHost = Date.now(); if (d && d.t === 'host' && d.p && typeof d.p === 'object') { const changed = JSON.stringify(d.p) !== JSON.stringify(host); host = d.p; if (changed) fire(); } else if (d && d.t === 'dm' && d.d) dmCbs.forEach(f => { try { f(d.d); } catch (e) {} }); });
