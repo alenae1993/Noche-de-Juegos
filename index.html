@@ -2470,7 +2470,7 @@ async function dmPump() {
   while (DMQ.length && NR) {
     const m = DMQ.shift();
     try { await NR.emit('dm', m); } catch (e) { if (e && e.code === 'not_permitted') { S.dmErr = true; DMQ.length = 0; render(); break; } }
-    await new Promise(r => setTimeout(r, 35));
+    await new Promise(r => setTimeout(r, 28));
   }
   dmPumping = false;
 }
@@ -2802,7 +2802,17 @@ function scaleTo(img, sx, sy, sw, sh, maxW, q) {
 }
 let cardSeq = 0;
 const newCardId = () => 'k' + (Date.now() % 1e7).toString(36) + (cardSeq++).toString(36);
-async function makeCard(img, sx, sy, sw, sh) { return { id: newCardId(), tv: await scaleTo(img, sx, sy, sw, sh, 640, 0.82), th: await scaleTo(img, sx, sy, sw, sh, 220, 0.62) }; }
+async function makeCard(img, sx, sy, sw, sh, src) {
+  // si la imagen original ya es un JPG liviano, se usa tal cual para la tele (ahorra una recompresión)
+  const keep = src && sw <= 720 && /jpe?g/i.test(src.type || '') && src.size < 400000;
+  const [tv, th] = await Promise.all([keep ? Promise.resolve(src) : scaleTo(img, sx, sy, sw, sh, 640, 0.82), scaleTo(img, sx, sy, sw, sh, 220, 0.62)]);
+  return { id: newCardId(), tv, th };
+}
+async function decodeImg(blob) { if (window.createImageBitmap) { try { return await createImageBitmap(blob); } catch (e) {} } return loadImg(blob); }
+const imgW = im => im.naturalWidth || im.width, imgH = im => im.naturalHeight || im.height;
+async function runPool(items, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } })); }
+let busyRenderT = 0;
+function setBusy(txt) { cardsBusy = txt; const el = document.getElementById('cards-busy'); if (el) el.textContent = txt; if (!el || Date.now() - busyRenderT > 1500) { busyRenderT = Date.now(); render(); } }
 async function addCards(list) {
   if (!list.length) return;
   CARDS.push(...list); list.forEach(c => { CARD_URL[c.id] = URL.createObjectURL(c.tv); });
@@ -2811,27 +2821,41 @@ async function addCards(list) {
 const blobToData = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
 async function cardThumb(id) { if (CARD_TH[id]) return CARD_TH[id]; const c = CARDS.find(x => x.id === id); if (!c) return ''; CARD_TH[id] = await blobToData(c.th); return CARD_TH[id]; }
 const isImgName = n => /\.(jpe?g|png|webp|gif|bmp)$/i.test(n);
-async function importFiles(files) {
+async function importFiles(files, label = '') {
   const imgs = [...files].filter(f => (f.type || '').startsWith('image/') || isImgName(f.name || ''));
-  let n = 0;
-  for (const f of imgs) { cardsBusy = `Procesando ${++n} de ${imgs.length}…`; render(); try { const img = await loadImg(f); await addCards([await makeCard(img, 0, 0, img.naturalWidth, img.naturalHeight)]); } catch (e) {} }
-  cardsBusy = ''; S.cardMsg = `${n} cartas agregadas.`; render();
+  let done = 0, ok = 0; const buf = [];
+  await runPool(imgs, 4, async f => {
+    try { const img = await decodeImg(f); const card = await makeCard(img, 0, 0, imgW(img), imgH(img), f); if (img.close) img.close(); buf.push(card); ok++; } catch (e) {}
+    done++; setBusy(`${label}Procesando ${done} de ${imgs.length}…`);
+    if (buf.length >= 30) await addCards(buf.splice(0));
+  });
+  if (buf.length) await addCards(buf.splice(0));
+  cardsBusy = ''; S.cardMsg = `${ok} cartas agregadas.`; render();
 }
 let jszipP = null;
 function loadJSZip() { if (window.JSZip) return Promise.resolve(); if (jszipP) return jszipP; jszipP = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = res; s.onerror = () => { jszipP = null; rej(new Error('zip')); }; document.head.appendChild(s); }); return jszipP; }
-async function importZip(file) {
-  try { cardsBusy = 'Abriendo el zip…'; render(); await loadJSZip(); const zip = await window.JSZip.loadAsync(file);
-    const entries = Object.values(zip.files).filter(e => !e.dir && isImgName(e.name) && !/(^|\/)__MACOSX\//.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
-    const blobs = []; for (const e of entries) blobs.push(new File([await e.async('blob')], e.name.split('/').pop(), { type: 'image/' + (e.name.split('.').pop().toLowerCase().replace('jpg', 'jpeg')) }));
-    await importFiles(blobs);
+async function importZip(files) {
+  files = [].concat(files); let total = 0;
+  try {
+    setBusy('Cargando el lector de zip…'); await loadJSZip();
+    for (let z = 0; z < files.length; z++) {
+      const label = files.length > 1 ? `Zip ${z + 1} de ${files.length} · ` : '';
+      setBusy(label + 'Abriendo…'); const zip = await window.JSZip.loadAsync(files[z]);
+      const entries = Object.values(zip.files).filter(e => !e.dir && isImgName(e.name) && !/(^|\/)__MACOSX\//.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+      const blobs = await Promise.all(entries.map(async e => new File([await e.async('blob')], e.name.split('/').pop(), { type: 'image/' + (e.name.split('.').pop().toLowerCase().replace('jpg', 'jpeg')) })));
+      await importFiles(blobs, label); total += blobs.length;
+    }
+    S.cardMsg = `${total} cartas agregadas.`; render();
   } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude abrir el zip. Prueba descomprimiéndolo y cargando la carpeta.'; render(); }
 }
 async function importSheet(file, cols, rows, count, label = '') {
   try {
-    cardsBusy = label + 'Recortando la hoja…'; render(); const img = await loadImg(file);
-    const w = img.naturalWidth / cols, h = img.naturalHeight / rows; const out = []; let k = 0;
-    for (let r = 0; r < rows && k < count; r++) for (let c = 0; c < cols && k < count; c++, k++) { cardsBusy = `${label}Recortando carta ${k + 1} de ${count}…`; if (k % 5 === 0) render(); out.push(await makeCard(img, c * w, r * h, w, h)); }
-    await addCards(out); cardsBusy = ''; S.cardMsg = `${out.length} cartas recortadas de la hoja.`; render();
+    setBusy(label + 'Recortando la hoja…'); const img = await decodeImg(file);
+    const w = imgW(img) / cols, h = imgH(img) / rows; const cells = []; for (let k = 0; k < count && k < cols * rows; k++) cells.push(k);
+    const out = new Array(cells.length); let done = 0;
+    await runPool(cells, 4, async k => { const r = Math.floor(k / cols), c = k % cols; out[k] = await makeCard(img, c * w, r * h, w, h); done++; setBusy(`${label}Recortando carta ${done} de ${cells.length}…`); });
+    if (img.close) img.close();
+    await addCards(out.filter(Boolean)); cardsBusy = ''; S.cardMsg = `${out.length} cartas recortadas de la hoja.`; render();
   } catch (e) { cardsBusy = ''; S.cardMsg = 'No pude leer esa imagen.'; render(); }
 }
 // Cartas incluidas en la versión privada de claude.ai (la versión pública no trae imágenes)
@@ -2841,10 +2865,12 @@ const PACK_FLAG = 'noche-dixit-incluidas';
 const packLoaded = () => { try { return localStorage.getItem(PACK_FLAG) === '1' && CARDS.length >= PACK_TOTAL; } catch (e) { return false; } };
 async function loadIncluded() {
   if (cardsBusy || !PACK_SHEETS.length) return;
+  const get = u => fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); });
+  let next = get(PACK_SHEETS[0].url);
   for (let i = 0; i < PACK_SHEETS.length; i++) {
     const p = PACK_SHEETS[i]; const label = `Hoja ${i + 1} de ${PACK_SHEETS.length} · `;
-    cardsBusy = label + 'Descargando…'; render();
-    try { const r = await fetch(p.url); if (!r.ok) throw new Error(r.status); await importSheet(await r.blob(), p.c, p.r, p.n, label); }
+    setBusy(label + 'Descargando…');
+    try { const blob = await next; next = i + 1 < PACK_SHEETS.length ? get(PACK_SHEETS[i + 1].url) : null; if (next) next.catch(() => {}); await importSheet(blob, p.c, p.r, p.n, label); }
     catch (e) { cardsBusy = ''; S.cardMsg = `No pude descargar la hoja ${i + 1}. Revisa la conexión y vuelve a intentarlo (se cargarán de nuevo desde el principio).`; render(); return; }
   }
   try { localStorage.setItem(PACK_FLAG, '1'); } catch (e) {}
@@ -2871,12 +2897,12 @@ VIEWS.cards = () => {
     <div class="spread"><h2>Mis cartas para Imaginario</h2><span class="pill">${n} cartas</span></div>
     <p class="muted">Las cartas se guardan solo en este navegador y nunca se publican. Cárgalas en el dispositivo que va a ser la pantalla principal; durante el juego, la pantalla envía a cada celular las cartas de su mano.</p>
     ${cardsNoDB ? `<p class="note">Este navegador no permite guardar las cartas (¿modo incógnito?). Funcionan mientras no cierres la página.</p>` : ''}
-    ${cardsBusy ? `<p class="note">${esc(cardsBusy)}</p>` : ''}
+    ${cardsBusy ? `<p class="note" id="cards-busy">${esc(cardsBusy)}</p>` : ''}
     ${PACK_SHEETS.length ? `<div class="panel spread"><div><b>Cartas de Dixit incluidas (${PACK_TOTAL})</b><div class="small muted">${packLoaded() ? 'Ya están cargadas en este navegador.' : 'Se descargan y guardan en este navegador una sola vez. Toma unos minutos.'}</div></div><button class="btn" data-a="cardsIncluded" ${cardsBusy || packLoaded() ? 'disabled' : ''}>${packLoaded() ? 'Cargadas ✓' : 'Cargar las ' + PACK_TOTAL + ' cartas'}</button></div>` : ''}
     <div class="dgrid2">
       <label class="panel stack"><b>Imágenes sueltas</b><span class="small muted">Elige una o muchas imágenes (JPG, PNG). Una imagen = una carta.</span><input type="file" id="cf-files" accept="image/*" multiple data-file="files"></label>
       <label class="panel stack"><b>Una carpeta completa</b><span class="small muted">Elige la carpeta donde tienes las cartas (funciona en Chrome y Edge de computador).</span><input type="file" id="cf-dir" webkitdirectory multiple data-file="files"></label>
-      <label class="panel stack"><b>Un archivo zip</b><span class="small muted">Con las imágenes de las cartas adentro.</span><input type="file" id="cf-zip" accept=".zip,application/zip" data-file="zip"></label>
+      <label class="panel stack"><b>Archivos zip</b><span class="small muted">Con las imágenes adentro. Puedes elegir varios zips a la vez.</span><input type="file" id="cf-zip" accept=".zip,application/zip" multiple data-file="zip"></label>
       <div class="panel stack"><b>Hoja de Tabletop Simulator</b><span class="small muted">Una imagen con muchas cartas en grilla. Indica columnas, filas y cuántas cartas trae (normalmente 10 × 7 con 69 cartas, porque la última casilla es el reverso).</span>
         <div class="row"><label class="small">Columnas <input type="number" id="cs-c" min="1" max="20" value="10" style="width:70px"></label><label class="small">Filas <input type="number" id="cs-r" min="1" max="20" value="7" style="width:70px"></label><label class="small">Cartas <input type="number" id="cs-n" min="1" max="400" value="69" style="width:80px"></label></div>
         <input type="file" id="cf-sheet" accept="image/*" data-file="sheet"></div>
@@ -2921,7 +2947,11 @@ GAMES.dix = {
   },
   async sendImgs(pid, ids, force) {
     const g = S.g; if (!g || !g.sent || !g.sent[pid]) return;
-    for (const id of ids) { if (!force && g.sent[pid].has(id)) continue; g.sent[pid].add(id); const src = await cardThumb(id); if (src) dmSend(pid, { t: 'img', id, src }); }
+    g.sentAt = g.sentAt || {};
+    for (const id of ids) {
+      const key = pid + '|' + id; if (force ? Date.now() - (g.sentAt[key] || 0) < 10000 : g.sent[pid].has(id)) continue;
+      g.sent[pid].add(id); g.sentAt[key] = Date.now(); const src = await cardThumb(id); if (src) dmSend(pid, { t: 'img', id, src });
+    }
   },
   tutNext() { const g = S.g; if (g.slide < DIX_TUT.length - 1) { g.slide++; render(); } else this.round(); },
   round() { const g = S.g; nextKey(); g.round++; g.ph = 'story'; g.story = null; g.picks = {}; g.votes = {}; g.table = null; g.res = null; g.help = false; this.pub(); render(); },
@@ -3048,8 +3078,8 @@ PHONE.dix = st => {
   P.dsel = (P.dsel || []).filter(id => hand.includes(id));
   if (P.dkey !== st.k + st.ph) { P.dkey = st.k + st.ph; P.dsel = []; }
   const missing = hand.filter(id => !P.imgs[id]);
-  if (missing.length && NR && Date.now() - (P.needT || 0) > 6000 && Date.now() - P.at > 5000) { P.needT = Date.now(); NR.presence({ needImg: missing.slice(0, 7), nk: Date.now() }).catch(() => {}); }
-  if (missing.length) setTimeout(() => { if (P.st === st) render(); }, 6500);
+  if (missing.length && NR && Date.now() - (P.needT || 0) > 10000 && Date.now() - P.at > 8000) { P.needT = Date.now(); NR.presence({ needImg: missing.slice(0, 7), nk: Date.now() }).catch(() => {}); }
+  if (missing.length) setTimeout(() => { if (P.st === st) render(); }, 10500);
   const role = `<div class="dbanner sm"><span class="dstep">Ronda ${st.r} · ${isNar ? 'Eres el narrador' : 'Narrador: ' + esc(st.nn)}</span></div>`;
   const handGrid = (selectable, max) => `<div class="hand">${hand.map(id => `<button class="hcard ${P.dsel.includes(id) ? 'on' : ''}" ${selectable ? `data-a="dixSel" data-id="${esc(id)}" data-max="${max}"` : 'disabled'}>${P.imgs[id] ? `<img src="${P.imgs[id]}" alt="Carta">` : '<span class="small muted">Cargando…</span>'}</button>`).join('')}</div>`;
   const help = txt => `<p class="note">${txt}</p>`;
@@ -3313,7 +3343,7 @@ document.addEventListener('change', e => {
   const t = e.target; const kind = t.dataset && t.dataset.file; if (!kind || !t.files || !t.files.length || cardsBusy) return;
   const files = [...t.files]; t.value = '';
   if (kind === 'files') importFiles(files);
-  else if (kind === 'zip') importZip(files[0]);
+  else if (kind === 'zip') importZip(files);
   else if (kind === 'sheet') { const v = id => Math.max(1, parseInt((document.getElementById(id) || {}).value, 10) || 1); importSheet(files[0], v('cs-c'), v('cs-r'), v('cs-n')); }
 });
 document.addEventListener('input', e => {
